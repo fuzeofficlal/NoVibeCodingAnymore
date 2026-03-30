@@ -7,11 +7,11 @@ import java.math.BigDecimal;
 @Data
 @Builder
 public class PositionDetailDTO {
-    private String tickerSymbol;
+    private String symbol;
     private String companyName;
-    private BigDecimal quantity;
-    private BigDecimal averageCost;
+    private BigDecimal shares;
     private BigDecimal currentPrice;
+    private BigDecimal costBasis;
     private BigDecimal marketValue;
-    private BigDecimal profitLoss;
+    private BigDecimal pl;
 }
