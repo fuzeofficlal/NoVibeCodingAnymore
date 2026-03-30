@@ -32,24 +32,26 @@ public class TransactionService {
     private final CompanyInfoRepository companyInfoRepository;
 
     @Transactional
-    public void processAssetTrade(String portfolioId, TradeRequest request) {
+    public String processAssetTrade(String portfolioId, TradeRequest request) {
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found for: " + portfolioId));
-        
+
         CompanyInfo companyInfo = companyInfoRepository.findById(request.getTickerSymbol())
-                .orElseThrow(() -> new ResourceNotFoundException("Company not found for ticker: " + request.getTickerSymbol()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Company not found for ticker: " + request.getTickerSymbol()));
 
         BigDecimal totalAmount = request.getQuantity().multiply(request.getPricePerUnit());
-        
-        // Find existing position if 1
+
+        // Find existing position if any hhrer
         Position position = positionRepository.findByPortfolioPortfolioId(portfolioId).stream()
                 .filter(p -> p.getCompanyInfo().getTickerSymbol().equals(request.getTickerSymbol()))
                 .findFirst()
                 .orElse(null);
 
-        if ("BUY".equalsIgnoreCase(request.getType())) {
+        if ("BUY".equalsIgnoreCase(request.getTransactionType())) {
             if (portfolio.getCashBalance().compareTo(totalAmount) < 0) {
-                throw new InsufficientFundsException("Not enough cash to process buy. Required: " + totalAmount + ", Available: " + portfolio.getCashBalance());
+                throw new InsufficientFundsException("Not enough cash to process buy. Required: " + totalAmount
+                        + ", Available: " + portfolio.getCashBalance());
             }
 
             // Deduct cash
@@ -66,14 +68,15 @@ public class TransactionService {
             } else {
                 BigDecimal oldTotalValue = position.getTotalQuantity().multiply(position.getAverageCost());
                 BigDecimal newTotalQuantity = position.getTotalQuantity().add(request.getQuantity());
-                BigDecimal newAverageCost = oldTotalValue.add(totalAmount).divide(newTotalQuantity, 4, RoundingMode.HALF_UP);
-                
+                BigDecimal newAverageCost = oldTotalValue.add(totalAmount).divide(newTotalQuantity, 4,
+                        RoundingMode.HALF_UP);
+
                 position.setTotalQuantity(newTotalQuantity);
                 position.setAverageCost(newAverageCost);
             }
             positionRepository.save(position);
 
-        } else if ("SELL".equalsIgnoreCase(request.getType())) {
+        } else if ("SELL".equalsIgnoreCase(request.getTransactionType())) {
             if (position == null || position.getTotalQuantity().compareTo(request.getQuantity()) < 0) {
                 throw new InsufficientStockException("Not enough stock quantity to sell.");
             }
@@ -90,7 +93,7 @@ public class TransactionService {
                 positionRepository.save(position);
             }
         } else {
-            throw new IllegalArgumentException("Unknown trade type: " + request.getType());
+            throw new IllegalArgumentException("Unknown trade type: " + request.getTransactionType());
         }
 
         portfolioRepository.save(portfolio);
@@ -100,20 +103,22 @@ public class TransactionService {
         transaction.setTransactionId(UUID.randomUUID().toString());
         transaction.setPortfolio(portfolio);
         transaction.setCompanyInfo(companyInfo);
-        transaction.setTransactionType(request.getType().toUpperCase());
+        transaction.setTransactionType(request.getTransactionType().toUpperCase());
         transaction.setQuantity(request.getQuantity());
         transaction.setPricePerUnit(request.getPricePerUnit());
         portfolioTransactionRepository.save(transaction);
+        return transaction.getTransactionId();
     }
 
     @Transactional
-    public void processCashFlow(String portfolioId, CashFlowRequest request) {
+    public String processCashFlow(String portfolioId, CashFlowRequest request) {
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found for: " + portfolioId));
 
         if ("WITHDRAW".equalsIgnoreCase(request.getType())) {
             if (portfolio.getCashBalance().compareTo(request.getAmount()) < 0) {
-                throw new InsufficientFundsException("Insufficient funds for withdrawal. Available: " + portfolio.getCashBalance());
+                throw new InsufficientFundsException(
+                        "Insufficient funds for withdrawal. Available: " + portfolio.getCashBalance());
             }
             portfolio.setCashBalance(portfolio.getCashBalance().subtract(request.getAmount()));
         } else if ("DEPOSIT".equalsIgnoreCase(request.getType())) {
@@ -132,5 +137,6 @@ public class TransactionService {
         transaction.setQuantity(request.getAmount());
         transaction.setPricePerUnit(BigDecimal.ONE);
         portfolioTransactionRepository.save(transaction);
+        return transaction.getTransactionId();
     }
 }
