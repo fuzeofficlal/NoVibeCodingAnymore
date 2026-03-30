@@ -1,4 +1,6 @@
 <img width="803" height="595" alt="image" src="https://github.com/user-attachments/assets/599b1af8-d8bc-4eca-8100-55006af5748f" />
+
+
 表1：Company Info (公司基础信息表)
 作为参考数据表，存储股票代码与公司名称的映射。
 字段名 (Field),数据类型 (Type),约束 (Key),字段说明 (Description)
