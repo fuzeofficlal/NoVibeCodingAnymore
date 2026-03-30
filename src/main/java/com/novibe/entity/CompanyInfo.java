@@ -4,6 +4,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Column;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +24,7 @@ public class CompanyInfo {
     @Column(name = "company_name", nullable = false)
     private String companyName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "asset_type", nullable = false, length = 20)
-    private String assetType = "STOCK";
+    private AssetType assetType = AssetType.STOCK;
 }
