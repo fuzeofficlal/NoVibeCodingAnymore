@@ -21,4 +21,7 @@ public class CompanyInfo {
 
     @Column(name = "company_name", nullable = false)
     private String companyName;
+
+    @Column(name = "asset_type", nullable = false, length = 20)
+    private String assetType = "STOCK";
 }

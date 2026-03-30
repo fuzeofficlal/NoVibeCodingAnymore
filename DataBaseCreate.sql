@@ -59,3 +59,6 @@ CREATE TABLE portfolio_transaction (
                                        FOREIGN KEY (portfolio_id) REFERENCES portfolio(portfolio_id),
                                        FOREIGN KEY (ticker_symbol) REFERENCES company_info(ticker_symbol)
 );
+
+ALTER TABLE company_info
+    ADD COLUMN asset_type VARCHAR(20) NOT NULL DEFAULT 'STOCK';
