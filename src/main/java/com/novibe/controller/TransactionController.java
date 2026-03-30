@@ -30,11 +30,7 @@ public class TransactionController {
         if ("DEPOSIT".equalsIgnoreCase(request.getTransactionType()) || "WITHDRAW".equalsIgnoreCase(request.getTransactionType())) {
             CashFlowRequest cfReq = new CashFlowRequest();
             cfReq.setType(request.getTransactionType());
-            cfReq.setAmount(request.getQuantity() != null ? request.getQuantity() : request.getPricePerUnit()); 
-            // the spec: "如果是纯现金存取，这里可传 1.0 或 null", quantity holds the amount usually, but we fallback. Actually, if they pass quantity: 10, price: 150, the UI might be passing amount in `quantity` or `amount`. 
-            // In the spec: `"quantity": 10.0, "pricePerUnit": 150.00 //如果是纯现金存取，这里可传 1.0 或 null`
-            // Usually amount = quantity.
-            
+            cfReq.setAmount(request.getQuantity() != null ? request.getQuantity() : request.getPricePerUnit());
             transactionId = transactionService.processCashFlow(portfolioId, cfReq);
         } else {
             // It's a BUY or SELL
