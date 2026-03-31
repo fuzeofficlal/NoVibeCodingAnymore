@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks, WebSocket
 from sqlalchemy.orm import Session
 from typing import List
+import asyncio
 
 from database import engine, get_db
 import models
@@ -48,6 +49,9 @@ async def startup_event():
 
     # APScheduler
     start_scheduler()
+
+    from websocket_manager import manager
+    asyncio.create_task(manager.broadcast_demo_ticks())
     
     # catch-up sync
    
@@ -110,3 +114,15 @@ async def get_historical_prices(
 @app.get("/api/v1/market/indicators/sma/{ticker}")
 async def get_sma_indicator(ticker: str, days: int = Query(50, description="Rolling window days (e.g. 20, 50, 200)")):
     return quant_engine.calculate_sma(ticker, days)
+
+# WebSocket Real-Time Stream Endpoint
+@app.websocket("/api/v1/market/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    from websocket_manager import manager
+    await manager.connect(websocket)
+    try:
+        while True:
+            # keep alive
+            await websocket.receive_text()
+    except Exception:
+        manager.disconnect(websocket)

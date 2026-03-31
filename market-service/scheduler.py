@@ -20,21 +20,36 @@ def run_polling_task():
     nyc_tz = pytz.timezone('America/New_York')
     now_nyc = datetime.now(nyc_tz)
     
-    # 判断传统美股是否开盘
-    is_market_open = True
+    # 1. 判断美股是否开盘
+    is_us_open = True
     if now_nyc.weekday() >= 5: # 周末
-        is_market_open = False
+        is_us_open = False
     elif now_nyc.hour < 9 or (now_nyc.hour == 9 and now_nyc.minute < 30):
-        is_market_open = False
+        is_us_open = False
     elif now_nyc.hour >= 16:
-        is_market_open = False
+        is_us_open = False
+
+    # 2. 判断 A 股是否开盘 (北京时间 09:30 - 15:00, Mon-Fri)
+    bj_tz = pytz.timezone('Asia/Shanghai')
+    now_bj = datetime.now(bj_tz)
+    
+    is_cn_open = True
+    if now_bj.weekday() >= 5: # 周末
+        is_cn_open = False
+    elif now_bj.hour < 9 or (now_bj.hour == 9 and now_bj.minute < 30):
+        is_cn_open = False
+    elif now_bj.hour >= 15:
+        is_cn_open = False
         
-    print(f"[SCHEDULER] Triggering Real-Time Polling (US Market Open: {is_market_open})")
+    any_market_open = is_us_open or is_cn_open
+    
+    print(f"[SCHEDULER] Real-Time Polling (US Open: {is_us_open} | CN Open: {is_cn_open})")
     db = SessionLocal()
     try:
-        # 如果开盘，传 crypto_only=False，抓取所有资产的快照
-        # 如果停盘，传 crypto_only=True，仅抓取 7x24 不停盘的数字货币
-        poll_realtime_prices(db, crypto_only=(not is_market_open))
+
+
+        # 如果中美至少有一个开盘，crypto_only=False抓取所有资产
+        poll_realtime_prices(db, crypto_only=(not any_market_open))
     finally:
         db.close()
 
@@ -49,11 +64,11 @@ def start_scheduler():
         replace_existing=True
     )
     
-    # 取消 9-16 和 工作日的限制，开启 7x24 小时无脑轮回。拦截器下放到 run_polling_task
+
     scheduler.add_job(
         run_polling_task,
         "cron",
-        minute='*/5',  # 每 5 分钟执行一次，不受日期限制
+        minute='*/5',
         timezone='America/New_York',
         id="realtime_polling",
         replace_existing=True
