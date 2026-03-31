@@ -40,40 +40,42 @@ def catch_up_sync(db):
     print("[SYNC]ing")
 
     # 1. Fetch SP500 & Extra Tickers
-    sp500_stocks = get_sp500_tickers()
+    sp500_raw = get_sp500_tickers()
+    sp500_stocks = [(t, n, 'STOCK') for t, n in sp500_raw]
+
     EXTRA_TICKERS = [
         # Cryptocurrencies (its is7x24)
-        ('BTC-USD', 'Bitcoin'),
-        ('ETH-USD', 'Ethereum'),
-        ('USDT-USD', 'Tether'),
-        ('BNB-USD', 'BNB'),
-        ('SOL-USD', 'Solana'),
-        ('XRP-USD', 'XRP'),
-        ('DOGE-USD', 'Dogecoin'),
-        ('ADA-USD', 'Cardano'),
-        ('USDC-USD', 'USD Coin'),
+        ('BTC-USD', 'Bitcoin', 'CRYPTO'),
+        ('ETH-USD', 'Ethereum', 'CRYPTO'),
+        ('USDT-USD', 'Tether', 'CRYPTO'),
+        ('BNB-USD', 'BNB', 'CRYPTO'),
+        ('SOL-USD', 'Solana', 'CRYPTO'),
+        ('XRP-USD', 'XRP', 'CRYPTO'),
+        ('DOGE-USD', 'Dogecoin', 'CRYPTO'),
+        ('ADA-USD', 'Cardano', 'CRYPTO'),
+        ('USDC-USD', 'USD Coin', 'CRYPTO'),
         
         # US Treasury Yields
-        ('^TNX', 'Treasury Yield 10 Years'),
-        ('^FVX', 'Treasury Yield 5 Years'),
-        ('^TYX', 'Treasury Yield 30 Years'),
+        ('^TNX', 'Treasury Yield 10 Years', 'BOND'),
+        ('^FVX', 'Treasury Yield 5 Years', 'BOND'),
+        ('^TYX', 'Treasury Yield 30 Years', 'BOND'),
         
         # Bond ETFs
-        ('TLT', 'iShares 20+ Year Treasury Bond ETF'),
-        ('AGG', 'iShares Core US Aggregate Bond ETF'),
-        ('BND', 'Vanguard Total Bond Market ETF'),
-        ('LQD', 'iShares iBoxx $ Investment Grade Corporate Bond ETF'),
-        ('HYG', 'iShares iBoxx $ High Yield Corporate Bond ETF')
+        ('TLT', 'iShares 20+ Year Treasury Bond ETF', 'BOND'),
+        ('AGG', 'iShares Core US Aggregate Bond ETF', 'BOND'),
+        ('BND', 'Vanguard Total Bond Market ETF', 'BOND'),
+        ('LQD', 'iShares iBoxx $ Investment Grade Corporate Bond ETF', 'BOND'),
+        ('HYG', 'iShares iBoxx $ High Yield Corporate Bond ETF', 'BOND')
     ]
     all_stocks = sp500_stocks + EXTRA_TICKERS
     
     total_tickers = len(all_stocks)
     print(f"[SYNC] Found {total_tickers} assets to process.")
 
-    for idx, (ticker, name) in enumerate(all_stocks, start=1):
+    for idx, (ticker, name, a_type) in enumerate(all_stocks, start=1):
         try:
-            stmt_comp = insert(CompanyInfo).values([{"ticker_symbol": ticker, "company_name": name}])
-            stmt_comp = stmt_comp.on_duplicate_key_update(company_name=name)
+            stmt_comp = insert(CompanyInfo).values([{"ticker_symbol": ticker, "company_name": name, "asset_type": a_type}])
+            stmt_comp = stmt_comp.on_duplicate_key_update(company_name=name, asset_type=a_type)
             db.execute(stmt_comp)
             watermark = db.query(func.max(HistoricalPrice.trade_date))\
                           .filter(HistoricalPrice.ticker_symbol == ticker)\

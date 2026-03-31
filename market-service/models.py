@@ -6,6 +6,7 @@ class CompanyInfo(Base):
     
     ticker_symbol = Column(String(50), primary_key=True, index=True)
     company_name = Column(String(255))
+    asset_type = Column(String(20), default='STOCK')
 
 class HistoricalPrice(Base):
     __tablename__ = "market_data"
