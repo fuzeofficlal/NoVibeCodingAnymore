@@ -4,10 +4,13 @@ import com.novibe.dto.HistoricalPerformanceDTO;
 import com.novibe.dto.PortfolioInfoDTO;
 import com.novibe.dto.PortfolioOverviewDTO;
 import com.novibe.dto.PositionDetailDTO;
+import com.novibe.dto.CreatePortfolioRequest;
+import com.novibe.dto.TransactionHistoryDTO;
 import com.novibe.entity.Portfolio;
 import com.novibe.exception.ResourceNotFoundException;
 import com.novibe.repository.PortfolioRepository;
 import com.novibe.service.PortfolioAnalyticsService;
+import com.novibe.service.PortfolioManagementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +24,14 @@ public class PortfolioController {
 
     private final PortfolioAnalyticsService analyticsService;
     private final PortfolioRepository portfolioRepository;
+    private final PortfolioManagementService portfolioManagementService;
+
+    @PostMapping
+    public ResponseEntity<PortfolioInfoDTO> createPortfolio(@RequestBody(required = false) CreatePortfolioRequest request) {
+        if (request == null) request = new CreatePortfolioRequest();
+        PortfolioInfoDTO newPortfolioInfo = portfolioManagementService.createPortfolio(request);
+        return new ResponseEntity<>(newPortfolioInfo, org.springframework.http.HttpStatus.CREATED);
+    }
 
     @GetMapping("/{portfolioId}")
     public ResponseEntity<PortfolioInfoDTO> getPortfolioInfo(@PathVariable String portfolioId) {
@@ -63,5 +74,10 @@ public class PortfolioController {
             daysBack = 365;
 
         return ResponseEntity.ok(analyticsService.getHistoricalPerformance(portfolioId, daysBack));
+    }
+
+    @GetMapping("/{portfolioId}/transactions")
+    public ResponseEntity<List<TransactionHistoryDTO>> getTransactions(@PathVariable String portfolioId) {
+        return ResponseEntity.ok(portfolioManagementService.getTransactionHistory(portfolioId));
     }
 }

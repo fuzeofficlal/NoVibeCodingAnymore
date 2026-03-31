@@ -52,7 +52,26 @@
 ## 💼 投资组合与资金业务群 (转发至 Java 微服务)
 这些接口涵盖了用户的核心资产管理、交易记录、以及盈亏 (PnL) 结算。
 
-### 5. 基础组合信息
+### 5A. 开设新组合 (开户)
+- **Endpoint**: `POST /api/v1/portfolios`
+- **描述**: 创建一个新的资产组合。系统强制要求在开户时**必须**存入初始开户本金（`initialDeposit` 参数必填且必须大于0）。
+- **Request Body**:
+  ```json
+  {
+    "name": "My Quant Fund",
+    "initialDeposit": 50000.00
+  }
+  ```
+- **返回体示例**:
+  ```json
+  {"portfolioId": "user_a1b2c3d4e5", "name": "My Quant Fund", "cashBalance": 100000.0}
+  ```
+
+### 5B. 历史交易账单明细
+- **Endpoint**: `GET /api/v1/portfolios/{portfolioId}/transactions`
+- **描述**: 按时间倒序拉取该账户产生过的所有交易流水记录（入金、出金、买入、卖出）。
+
+### 5C. 基础组合信息
 - **Endpoint**: `GET /api/v1/portfolios/{portfolioId}`
 - **描述**: 获取该账户的基本信息和当前现金余量 (Cash Balance)。
 
@@ -79,7 +98,7 @@
 
 ### 9. 组合历史业绩时光机
 - **Endpoint**: `GET /api/v1/portfolios/{portfolioId}/performance`
-- **Query 参数**: `daysBack` (需要回溯计算的天数)
+- **Query 参数**: `range` - 回溯时间范围 (缺省为 `1M`。可选: `1M`, `3M`, `6M`, `YTD`, `1Y`)
 - **描述**: 根据持仓明细映射历史价格数据，每日回放生成资产的历史净值曲线。
 
 ### 10. 全局可用资产列表
