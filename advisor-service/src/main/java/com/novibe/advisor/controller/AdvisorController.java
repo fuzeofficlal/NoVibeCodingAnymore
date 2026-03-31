@@ -35,4 +35,15 @@ public class AdvisorController {
         String response = advisorService.chatWithAgent(portfolioId, request.query(), apiKeyHeader);
         return ResponseEntity.ok(response);
     }
+
+    public record ProactiveAlertRequest(String ticker, Double price, String type, Double target) {}
+
+    @PostMapping("/{portfolioId}/proactive-alert")
+    public ResponseEntity<String> triggerProactiveAlert(
+            @PathVariable String portfolioId,
+            @RequestBody ProactiveAlertRequest request) {
+        
+        String response = advisorService.generateProactiveAlert(portfolioId, request.ticker(), request.price(), request.type(), request.target());
+        return ResponseEntity.ok(response);
+    }
 }

@@ -139,9 +139,17 @@ try {
 } catch { Write-Host "   -> [!] Market News API call failed." -ForegroundColor Red }
 
 try {
-    $chatPrompt = '{"query": "Do I currently hold Tesla and Apple? If so, get the latest news for Apple and summarize the risk in one sentence."}'
-    Write-Host "`n   [🤖] Wake Up Call: Initiating Agent Function Calling Architecture" -ForegroundColor Magenta
-    $null = Assert-ApiCall -Description "Execute Natural Language Agent Orchestration Pipeline" -Method "Post" -Uri "$GATEWAY/advisor/TEST_PORTFOLIO_FULL/chat" -Body $chatPrompt -Expected "The Agent will automatically utilize internal microservice Tools: it searches Holdings internally -> triggers Market News -> crafts final markdown response."
+    Write-Host "`n   [🤖] Wake Up Call 1: News & Holdings Orchestration" -ForegroundColor Magenta
+    $chatPrompt1 = '{"query": "Do I currently hold Tesla and Apple? If so, get the latest news for Apple and summarize the risk in one sentence."}'
+    $null = Assert-ApiCall -Description "Agent reads holdings, fetches news, and writes report" -Method "Post" -Uri "$GATEWAY/advisor/TEST_PORTFOLIO_FULL/chat" -Body $chatPrompt1 -Expected "Agent leverages getPortfolioHoldings() and getMarketNews() to respond."
+
+    Write-Host "`n   [🤯] Wake Up Call 2: Autonomous Trading (Action Engine)" -ForegroundColor Magenta
+    $chatPrompt2 = '{"query": "Please execute a BUY order for 5 shares of AAPL for my portfolio right now."}'
+    $null = Assert-ApiCall -Description "Agent autonomously calculates market price and executes a live BUY transaction" -Method "Post" -Uri "$GATEWAY/advisor/TEST_PORTFOLIO_FULL/chat" -Body $chatPrompt2 -Expected "Agent leverages executeTransaction() tool, deducts cash, and confirms purchase."
+
+    Write-Host "`n   [🚨] Wake Up Call 3: Proactive Awakening Engine (System Alert)" -ForegroundColor Red
+    $alertPayload = '{"ticker": "AAPL", "price": 145.0, "type": "STOP_LOSS", "target": 150.0}'
+    $null = Assert-ApiCall -Description "Core Alert Scheduler detects a drop and forcefully awakens AI Copilot to generate an urgent system message." -Method "Post" -Uri "$GATEWAY/advisor/TEST_PORTFOLIO_FULL/proactive-alert" -Body $alertPayload -Expected "AI generates a highly alarming push notification advising immediate action based on SMA and news."
 } catch {
     Write-Host "   -> [V] Advisor API correctly rejected unauthorized access without X-API-Key!" -ForegroundColor Green
 }

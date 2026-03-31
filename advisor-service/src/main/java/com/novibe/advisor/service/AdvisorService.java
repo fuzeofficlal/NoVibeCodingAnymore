@@ -15,7 +15,11 @@ public class AdvisorService {
 
     // register agent toolsand functional calling ab
     private final org.springframework.ai.model.function.FunctionCallbackContext functionCallbackContext;
+    
     private final String defaultApiKey;
+
+    //  Memory Engine ---
+    private final org.springframework.ai.chat.memory.ChatMemory chatMemory = new org.springframework.ai.chat.memory.InMemoryChatMemory();
 
     public AdvisorService(RestClient restClient,
             @org.springframework.beans.factory.annotation.Value("${spring.ai.openai.base-url}") String defaultBaseUrl,
@@ -47,7 +51,8 @@ public class AdvisorService {
         ChatClient activeClient = ChatClient.create(openAiChatModel).mutate()
                 .defaultSystem(
                         "You are an AI Agent running inside a quantitative finance system. You have tools at your disposal to fetch news, get portfolio summaries, and execute BUY/SELL transactions for the user. Always use these tools to fulfill User Requests. Never hallucinate data. The active user's portfolio ID is " + portfolioId + " .")
-                .defaultFunctions("getMarketNews", "executeTransaction", "getPortfolioSummary", "getPortfolioHoldings")
+                .defaultFunctions("getMarketNews", "executeTransaction", "getPortfolioSummary", "getPortfolioHoldings", "getSmaIndicator")
+                .defaultAdvisors(new org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor(this.chatMemory, portfolioId, 10))
                 .build();
 
         return activeClient.prompt()
@@ -141,5 +146,42 @@ public class AdvisorService {
                 .user(userPrompt)
                 .call()
                 .content();
+    }
+
+    public String generateProactiveAlert(String portfolioId, String ticker, Double currentPrice, String alertType, Double targetPrice) {
+        String keyToUse = this.defaultApiKey;
+        if (keyToUse == null || keyToUse.isBlank()) {
+            System.err.println("⚠️ **No API Key for Proactive Alert**");
+            return "NO_API_KEY";
+        }
+
+        var openAiApi = new org.springframework.ai.openai.api.OpenAiApi(this.defaultBaseUrl, keyToUse);
+        var options = org.springframework.ai.openai.OpenAiChatOptions.builder().withModel(this.defaultModel).build();
+        var openAiChatModel = new org.springframework.ai.openai.OpenAiChatModel(openAiApi, options, this.functionCallbackContext, org.springframework.ai.retry.RetryUtils.DEFAULT_RETRY_TEMPLATE);
+        
+        org.springframework.ai.chat.client.ChatClient activeClient = org.springframework.ai.chat.client.ChatClient.create(openAiChatModel).mutate()
+                .defaultSystem(
+                        "You are an AI Agent running inside a quantitative finance system monitoring a user's portfolio (" + portfolioId + "). " +
+                        "A serious backend system alert has been triggered. You MUST respond with a highly urgent, proactive warning message addressed to the user. " +
+                        "Evaluate the situation and strongly suggest if they should sell or hold based on your general knowledge. Be brief and highly alarming.")
+                .defaultFunctions("getMarketNews", "getSmaIndicator", "getPortfolioHoldings")
+                .defaultAdvisors(new org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor(this.chatMemory, portfolioId, 10))
+                .build();
+
+        String alertPrompt = String.format("SYSTEM ALERT: The stock %s has hit a %s condition! Current Price: $%.2f. The user's target threshold was $%.2f. Please write an urgent proactive notification evaluating the news and suggesting immediate actions.",
+            ticker, alertType, currentPrice, targetPrice);
+
+        String urgentMessage = activeClient.prompt()
+                .user(alertPrompt)
+                .call()
+                .content();
+                
+        System.out.println("================================================================");
+        System.out.println(" \uD83D\uDEA8 [PROACTIVE AI COPILOT ALERT TRIGGERED FOR " + portfolioId + "]");
+        System.out.println("================================================================");
+        System.out.println(urgentMessage);
+        System.out.println("================================================================\n");
+        
+        return urgentMessage;
     }
 }
