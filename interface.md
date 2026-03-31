@@ -120,6 +120,7 @@
 
 ### 10. 量化智投大模型分析报告 (AI Risk Insight)
 - **Endpoint**: `GET /api/v1/advisor/{portfolioId}/insight`
+- **Request Headers**: `X-API-Key` (必填) - 平台已取消硬编码全局密钥，此请求必须要携带用户的合法大模型 API Key，否则将被拦截。
 - **描述**: 基于 Spring AI 调用后台绑定的大语言模型 (`gemini-3-pro-preview` 或 `claude-opus-4-6`)，由其扮演的高级基金量化风险师动态审视 `holdings` 与 `cashBalance`，并利用大模型生成包含结构化风控指引与极端压力测试建议的高质量研报。
 - **返回体示例 (纯文本 Markdown)**:
   ```markdown
