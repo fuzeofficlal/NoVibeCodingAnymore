@@ -1,111 +1,87 @@
 # REST API 接口文档 (Interface Summary)
 
-本文档总结了系统当前支持的所有全后端对接 API 接口。前端开发者可依据此文档进行数据联调。
+本项目的微服务架构采用 API Gateway (网关) 统一对外暴露 `/api/v1` 路由，智能分流到底层不同的微服务处理。
+- **Go Gateway (主入口)**: `http://localhost:8090`
+- **Java Spring Boot (核心业务)**: 内部运行于 `8080` 端口
+- **Python FastAPI (数据管线)**: 内部运行于 `8000` 端口
+
+所有的前端/客户端请求，**只需要请求网关 (:8090)** 即可。
 
 ---
 
-## 模块一：投资组合与交易核心 (Portfolio & Transactions)
-> **职责**：负责所有涉及金额、持仓变动的“写”操作及核心对账“读”操作。
+## 📈 金融市场数据接口群 (转发至 Python 微服务)
+这些接口专门负责金融数据的抓取、同步和量化计算。
 
-### 1. 执行资金流转与资产交易
-- **URL**: `POST /api/v1/portfolios/{portfolioId}/transactions`
-- **说明**: 前端执行买入、卖出股票，或充值、提现等核心操作统一经由此接口。
-- **Request Body**:
+### 1. 强制数据全量同步
+- **Endpoint**: `POST /api/v1/market/sync`
+- **描述**: 手动触发一个后台 ETL 任务，进行历史数据追赶和实时数据刷新。
+- **返回体示例**:
   ```json
-  {
-    "tickerSymbol": "AAPL",      // 若为纯资金存取(DEPOSIT/WITHDRAW)，传 null
-    "transactionType": "BUY",    // 可选值: BUY, SELL, DEPOSIT, WITHDRAW
-    "quantity": 10.0,            // 存款或取款时，金额数量填在这个字段
-    "pricePerUnit": 150.00       // 若为纯资金存取，传 1.0 即可
-  }
+  {"status": "accepted", "message": "Background ETL Sync Started."}
   ```
-- **Response (201 Created)**:
-  ```json
-  {
-    "message": "Transaction successful",
-    "transactionId": "txn-8f2e2...",
-    "newCashBalance": 3500.00
-  }
-  ```
-- **异常提示**: 余额不足(InsufficientFunds)、股票不足(InsufficientStock) 会在请求体校验后抛出异常。
 
-### 2. 获取投资组合基础信息
-- **URL**: `GET /api/v1/portfolios/{portfolioId}`
-- **说明**: 用于快速获取投资组合名称及可用现金。
-- **Response (200 OK)**:
+### 2. 获取实时资产快照价格
+- **Endpoint**: `GET /api/v1/market/prices`
+- **Query 参数**: `tickers` (可选) - 逗号分隔的资产代码，如 `?tickers=AAPL,BTC-USD`。为空则返回全量。
+- **描述**: 从 `market_price` 数据库中极速返回最近一次轮询的强力快照。
+- **返回体示例**:
   ```json
-  {
-    "portfolioId": "port-001",
-    "name": "My Retirement Fund",
-    "cashBalance": 5200.00
-  }
+  [
+    {"ticker_symbol": "AAPL", "current_price": 155.0, "last_updated": "2026-03-31T10:00:00"}
+  ]
   ```
+
+### 3. 获取个股历史收盘价数据
+- **Endpoint**: `GET /api/v1/market/history/{ticker}`
+- **Query 参数**: `start_date` (YYYY-MM-DD), `end_date` (YYYY-MM-DD)
+- **描述**: 查询某个资产的时间序列数据集。
+- **返回体示例**:
+  ```json
+  [
+    {"trade_date": "2026-03-30", "close_price": 150.00}
+  ]
+  ```
+
+### 4. 获取量化指标 (简单移动平均线 SMA)
+- **Endpoint**: `GET /api/v1/market/indicators/sma/{ticker}`
+- **Query 参数**: `days` - 均线窗口天数 (比如 `20`, `50`, `200`)
+- **描述**: 通过 Python 原生的 Pandas 实时生成基于时间序列的量化平滑因子。
 
 ---
 
-## 模块二：Dashboard 视图数据 (Analytics)
-> **职责**：专为 Dashboard 仪表盘读取并预处理数据，提供图表所需的数据切片。
+## 💼 投资组合与资金业务群 (转发至 Java 微服务)
+这些接口涵盖了用户的核心资产管理、交易记录、以及盈亏 (PnL) 结算。
 
-### 3. 获取顶层指标与资产配置饼图
-- **URL**: `GET /api/v1/portfolios/{portfolioId}/summary`
-- **说明**: 返回顶部两个核心大数字，以及按类目汇总的资产饼状分配详情。
-- **Response (200 OK)**:
+### 5. 基础组合信息
+- **Endpoint**: `GET /api/v1/portfolios/{portfolioId}`
+- **描述**: 获取该账户的基本信息和当前现金余量 (Cash Balance)。
+
+### 6. 发起交易/资金流水 (核心事务流)
+- **Endpoint**: `POST /api/v1/portfolios/{portfolioId}/transactions`
+- **描述**: 发起入金、出金、买入、卖出行为，自动更新现金和头寸表。
+- **Request Body (买入示例)**:
   ```json
   {
-    "totalPortfolioValue": 152430.25,
-    "totalReturnPercentage": 12.8,
-    "allocation": {
-      "CASH": 5200.00,
-      "STOCKS": 110900.20,
-      "BONDS": 25330.00,
-      "CRYPTO": 11000.05
-    }
+    "transactionType": "BUY",
+    "tickerSymbol": "AAPL",
+    "quantity": 100.0,
+    "pricePerUnit": 5.00
   }
   ```
 
-### 4. 获取详细持仓列表 (Your Holdings)
-- **URL**: `GET /api/v1/portfolios/{portfolioId}/holdings`
-- **说明**: 提供明细表格（含标的、持仓份额、当前价、成本均价、总市值以及浮动盈亏）。
-- **Response (200 OK)**:
-  ```json
-  [
-    {
-      "symbol": "AAPL",
-      "companyName": "Apple Inc.",
-      "shares": 35,
-      "currentPrice": 145.32,
-      "costBasis": 120.00,
-      "marketValue": 5086.20,
-      "pl": 886.20
-    }
-  ]
-  ```
+### 7. 组合总市值与 PnL 分析汇总
+- **Endpoint**: `GET /api/v1/portfolios/{portfolioId}/summary`
+- **描述**: Java 会跨微服务读取最新快照，计算整个账号的总资产(Net Asset Value)、总回报率(ROI，百分比)以及资产配置分布。
 
-### 5. 获取历史业绩走势曲线
-- **URL**: `GET /api/v1/portfolios/{portfolioId}/performance`
-- **Params**: `?range=1M` (支持 `1M`, `3M`, `6M`, `YTD`, `1Y`)
-- **说明**: 计算指定回溯期内，资产总值每天的变化曲线（基于历史股价与当前持仓进行估算回测）。
-- **Response (200 OK)**:
-  ```json
-  [
-    {"date": "2023-04-01", "value": 120500.00},
-    {"date": "2023-04-02", "value": 123800.50},
-    {"date": "2023-04-03", "value": 122900.00}
-  ]
-  ```
+### 8. 所有持仓列表 (Holdings)
+- **Endpoint**: `GET /api/v1/portfolios/{portfolioId}/holdings`
+- **描述**: 返回每笔持仓的数量、成本均价，以及通过读取最新快照计算出的当前浮动盈亏（Unrealized PnL）。
 
----
+### 9. 组合历史业绩时光机
+- **Endpoint**: `GET /api/v1/portfolios/{portfolioId}/performance`
+- **Query 参数**: `daysBack` (需要回溯计算的天数)
+- **描述**: 根据持仓明细映射历史价格数据，每日回放生成资产的历史净值曲线。
 
-## 模块三：参考数据 (Reference Data)
-> **职责**：供前端提取市场元数据字典。
-
-### 6. 获取所有可交易资产列表
-- **URL**: `GET /api/v1/assets`
-- **说明**: 检索系统中允许交易的所有证券、货币的资产类型字典 (用于 Add Assets 模态框)。
-- **Response (200 OK)**:
-  ```json
-  [
-    {"symbol": "AAPL", "name": "Apple Inc.", "type": "STOCK"},
-    {"symbol": "US10Y", "name": "US 10-Year Treasury", "type": "BONDS"}
-  ]
-  ```
+### 10. 全局可用资产列表
+- **Endpoint**: `GET /api/v1/assets`
+- **描述**: 获取平台配置的所有可交易对象（如美股 500 强、加密货币等列表）。
