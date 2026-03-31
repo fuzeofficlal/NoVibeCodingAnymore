@@ -106,4 +106,22 @@ public class AgentTools {
             }
         };
     }
+
+    public record SmaIndicatorRequest(String tickerSymbol, Integer days) {}
+
+    @Bean
+    @Description("Get the Simple Moving Average (SMA) technical indicator charting data for a stock over a given number of days (e.g. 20, 50, 200).")
+    public Function<SmaIndicatorRequest, String> getSmaIndicator() {
+        return request -> {
+            try {
+                int defaultDays = request.days() != null ? request.days() : 20;
+                return restClient.get()
+                    .uri("http://localhost:8090/api/v1/market/indicators/sma/{ticker}?days={days}", request.tickerSymbol(), defaultDays)
+                    .retrieve()
+                    .body(String.class);
+            } catch(Exception e) {
+                return "Failed to fetch SMA: " + e.getMessage();
+            }
+        };
+    }
 }
