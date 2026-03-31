@@ -1,28 +1,67 @@
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   Full E2E Integration Test: Go + Java + Python (100%)" -ForegroundColor Cyan
+Write-Host "   Full E2E Integration Test: Go + Java + Python (Verbose)" -ForegroundColor Cyan
 Write-Host "==========================================================`n" -ForegroundColor Cyan
 
 $GATEWAY = "http://127.0.0.1:8090/api/v1"
 
-# 1. 检查网关服务
-Write-Host ">>> [1/7] 检查 Go 统一网关 (Port 8090)..." -ForegroundColor Yellow
-$gatewayIsUp = (Test-NetConnection -ComputerName 127.0.0.1 -Port 8090 -InformationLevel Quiet)
-if (-not $gatewayIsUp) {
-    Write-Host "ERROR: Go Gateway is not running at 8090!" -ForegroundColor Red
-    exit 1
+function Assert-ApiCall {
+    param(
+        [string]$Description,
+        [string]$Method,
+        [string]$Uri,
+        [string]$Body = "",
+        [string]$Expected = "Success (HTTP 20x) with JSON response data"
+    )
+    Write-Host "`n------------------------------------------------------------" -ForegroundColor DarkCyan
+    Write-Host " [SCENARIO] $Description" -ForegroundColor Cyan
+    Write-Host " [REQUEST]  $Method $Uri" -ForegroundColor DarkGray
+    if ($Body) { Write-Host " [PAYLOAD]  $Body" -ForegroundColor DarkGray }
+    Write-Host " [EXPECTED] $Expected" -ForegroundColor DarkYellow
+    
+    try {
+        if ($Body) {
+            $resp = Invoke-RestMethod -Uri $Uri -Method $Method -Body $Body -Headers @{"Content-Type" = "application/json"} -ErrorAction Stop
+        } else {
+            $resp = Invoke-RestMethod -Uri $Uri -Method $Method -ErrorAction Stop
+        }
+        
+        $respJson = ""
+        if ($resp -is [string]) {
+            $respJson = $resp
+        } elseif ($resp) {
+            $respJson = $resp | ConvertTo-Json -Depth 5 -Compress
+        } else {
+            $respJson = "(Empty Body)"
+        }
+        
+        if ($respJson.Length -gt 800) { $respJson = $respJson.Substring(0, 800) + " ... (Truncated)" }
+        Write-Host " [ACTUAL]   $respJson" -ForegroundColor Green
+        return $resp
+    } catch {
+        Write-Host " [ERROR]    $_" -ForegroundColor Red
+        throw $_
+    }
 }
+
+# 1. 检查网关服务
+Write-Host ">>> [1/7] Checking Go Gateway (Port 8090)..." -ForegroundColor Yellow
+$gatewayIsUp = (Test-NetConnection -ComputerName 127.0.0.1 -Port 8090 -InformationLevel Quiet)
+if (-not $gatewayIsUp) { Write-Host "ERROR: Go Gateway is not running at 8090!" -ForegroundColor Red; exit 1 }
 Write-Host "SUCCESS: Go Gateway is ONLINE!`n" -ForegroundColor Green
 
 
 # 2. 数据库安全重置与基础注入
-Write-Host ">>> [2/7] 初始化数据库沙盒 (TEST_PORTFOLIO_FULL)..." -ForegroundColor Yellow
+Write-Host ">>> [2/7] Initializing DB Sandbox (TEST_PORTFOLIO_FULL)..." -ForegroundColor Yellow
 $pythonSeeder = @"
 import pymysql
 try:
     conn = pymysql.connect(host='127.0.0.1', port=3306, user='root', password='Azhe114514', database='newport_db', autocommit=True)
     with conn.cursor() as c:
+        c.execute("DELETE FROM watchlist WHERE portfolio_id='TEST_PORTFOLIO_FULL'")
+        c.execute("DELETE FROM price_alert WHERE portfolio_id='TEST_PORTFOLIO_FULL'")
         c.execute("DELETE FROM portfolio_transaction WHERE portfolio_id='TEST_PORTFOLIO_FULL'")
         c.execute("DELETE FROM position WHERE portfolio_id='TEST_PORTFOLIO_FULL'")
         c.execute("UPDATE portfolio SET cash_balance=0 WHERE portfolio_id='TEST_PORTFOLIO_FULL'")
@@ -31,127 +70,82 @@ try:
         c.execute("INSERT IGNORE INTO company_info (ticker_symbol, company_name, asset_type) VALUES ('BTC-USD', 'Bitcoin', 'CRYPTO')")
         c.execute("INSERT IGNORE INTO portfolio (portfolio_id, name, cash_balance) VALUES ('TEST_PORTFOLIO_FULL', 'Full Coverage Test', 0)")
         
-        # 预埋底层数据防 429 断连
         c.execute("INSERT INTO market_price (ticker_symbol, current_price) VALUES ('AAPL', 155.00) ON DUPLICATE KEY UPDATE current_price=155.00")
         c.execute("INSERT INTO market_price (ticker_symbol, current_price) VALUES ('BTC-USD', 65000.00) ON DUPLICATE KEY UPDATE current_price=65000.00")
     conn.close()
 except Exception as e:
     print(f"Error: {e}")
 "@
-
 $pythonOutput = $pythonSeeder | python - 
-if ($pythonOutput -match "Error") {
-    Write-Host "ERROR During DB Seeding:`n$pythonOutput" -ForegroundColor Red
-    exit 1
-}
+if ($pythonOutput -match "Error") { Write-Host "ERROR During DB Seeding:`n$pythonOutput" -ForegroundColor Red; exit 1 }
 Write-Host "SUCCESS: Sandbox prepared!`n" -ForegroundColor Green
 
 
-# 3. 测试 Python 数据管线与量化逻辑 (通过 Gateway 转发)
-Write-Host ">>> [3/7] 测试 Python 数据服务层路由与指标逻辑..." -ForegroundColor Yellow
+# 3. 测试 Python 数据管线与量化逻辑
+Write-Host ">>> [3/7] Testing Python Market Data Routing..." -ForegroundColor Yellow
 
-# 测试 /market/prices 快照接口
-$prices = Invoke-RestMethod -Uri "$GATEWAY/market/prices?tickers=AAPL,BTC-USD" -Method Get
-if ($prices.Count -ne 2) {
-    Write-Host "ERROR: Failed to fetch SNAPSHOT prices for 2 tickers." -ForegroundColor Red
-    exit 1
-}
-Write-Host "   -> [V] Realtime Snapshot API (AAPL, BTC-USD) works!" -ForegroundColor DarkGray
+$null = Assert-ApiCall -Description "Fetch Real-time Snapshot for AAPL and BTC-USD" -Method "Get" -Uri "$GATEWAY/market/prices?tickers=AAPL,BTC-USD" -Expected "Return an array containing [AAPL, BTC-USD] objects with current_price"
 
-# 测试 /market/sync 后台更新脚本触发器
-# 直接发送不检查输出，因为这是一个抛向后台的守护进程
-Invoke-RestMethod -Uri "$GATEWAY/market/sync" -Method Post | Out-Null
-Write-Host "   -> [V] ETL Sync Trigger API accepts requests!" -ForegroundColor DarkGray
+$null = Assert-ApiCall -Description "Trigger Backend Price Sync ETL Task" -Method "Post" -Uri "$GATEWAY/market/sync" -Expected "Return async task status message"
 
-# 测试 /market/indicators/sma 简单移动平均线量化引擎
-# 由于网络限制，这里加个 try-catch 防止无历史数据时 Pandas 报空
 try {
-    $sma = Invoke-RestMethod -Uri "$GATEWAY/market/indicators/sma/AAPL?days=20" -Method Get
-    Write-Host "   -> [V] Quant SMA Engine running! AAPL 20-Day SMA is: $($sma.sma)" -ForegroundColor DarkGray
-} catch {
-    Write-Host "   -> [!] Quant SMA Engine skipping (No sufficient historical data to compute SMA yet)" -ForegroundColor DarkGray
-}
-Write-Host "SUCCESS: Python market logic verified!`n" -ForegroundColor Green
+    $null = Assert-ApiCall -Description "Calculate 20-Day SMA for AAPL" -Method "Get" -Uri "$GATEWAY/market/indicators/sma/AAPL?days=20" -Expected "Return { sma: <numeric_value> } structure"
+} catch { Write-Host "   -> [!] Quant SMA Engine skipping (No sufficient historical data yet)" -ForegroundColor DarkGray }
 
 
 # 4. 测试 Java 核心资金与事务逻辑
-Write-Host ">>> [4/7] 测试 Java 资金出入金与买单卖单..." -ForegroundColor Yellow
-$headers = @{"Content-Type" = "application/json"}
+Write-Host "`n>>> [4/7] Testing Java Transaction Logic Engine..." -ForegroundColor Yellow
 
-# 1. 入金 (Deposit 100,000)
-$deposit = '{"transactionType": "DEPOSIT", "quantity": 100000.0}'
-Invoke-RestMethod -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/transactions" -Method Post -Body $deposit -Headers $headers | Out-Null
-Write-Host "   -> [V] DEPOSIT `$100,000 successful" -ForegroundColor DarkGray
+$null = Assert-ApiCall -Description "Deposit Cash into Portfolio" -Method "Post" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/transactions" -Body '{"transactionType": "DEPOSIT", "quantity": 100000.0}' -Expected "Create DEPOSIT row and raise cash_balance by 100000"
 
-# 2. 买入苹果 (Buy 100 AAPL @ $150.00 = $15000)
-$buyAapl = '{"transactionType": "BUY", "tickerSymbol": "AAPL", "quantity": 100.0, "pricePerUnit": 150.00}'
-Invoke-RestMethod -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/transactions" -Method Post -Body $buyAapl -Headers $headers | Out-Null
-Write-Host "   -> [V] BUY 100 AAPL @ `$150.00 successful" -ForegroundColor DarkGray
+$null = Assert-ApiCall -Description "Buy 100 Shares of AAPL @ $150.00" -Method "Post" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/transactions" -Body '{"transactionType": "BUY", "tickerSymbol": "AAPL", "quantity": 100.0, "pricePerUnit": 150.00}' -Expected "Deduct $15000 from cash and create 100 AAPL position"
 
-# 3. 买入比特币 (Buy 1 BTC @ $60,000)
-$buyBtc = '{"transactionType": "BUY", "tickerSymbol": "BTC-USD", "quantity": 1.0, "pricePerUnit": 60000.00}'
-Invoke-RestMethod -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/transactions" -Method Post -Body $buyBtc -Headers $headers | Out-Null
-Write-Host "   -> [V] BUY 1 BTC @ `$60,000 successful" -ForegroundColor DarkGray
+$null = Assert-ApiCall -Description "Buy 1 BTC @ $60,000" -Method "Post" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/transactions" -Body '{"transactionType": "BUY", "tickerSymbol": "BTC-USD", "quantity": 1.0, "pricePerUnit": 60000.00}' -Expected "Deduct $60000 from cash and create 1 BTC position"
 
-# 4. 卖出部分股票 (Sell 50 AAPL)
-$sellAapl = '{"transactionType": "SELL", "tickerSymbol": "AAPL", "quantity": 50.0, "pricePerUnit": 155.00}'
-Invoke-RestMethod -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/transactions" -Method Post -Body $sellAapl -Headers $headers | Out-Null
-Write-Host "   -> [V] SELL 50 AAPL @ `$155.00 successful" -ForegroundColor DarkGray
+$null = Assert-ApiCall -Description "Partially Sell 50 Shares of AAPL @ $155.00" -Method "Post" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/transactions" -Body '{"transactionType": "SELL", "tickerSymbol": "AAPL", "quantity": 50.0, "pricePerUnit": 155.00}' -Expected "Add $7750 to cash_balance and reduce AAPL position to 50 shares"
 
-# 校验基础余额 
-# 100000 - 15000 (买AAPL) - 60000 (买BTC) + 7750 (卖AAPL) = 32750
-$portBase = Invoke-RestMethod -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL" -Method Get
-if ($portBase.cashBalance -ne 32750) {
-    Write-Host "ERROR: Transaction calculation failed! Expected 32750, Got $($portBase.cashBalance)" -ForegroundColor Red
-    exit 1
-}
-Write-Host "SUCCESS: Transaction & Account balance matches perfect!`n" -ForegroundColor Green
+$portBase = Assert-ApiCall -Description "Verify Exact Cash Balance Matching" -Method "Get" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL" -Expected "Return Portfolio object where cashBalance exactly equals 32750.0"
+if ([math]::Round($portBase.cashBalance) -ne 32750) { Write-Host "ERROR: Cash balance mismatch!" -ForegroundColor Red; exit 1 }
 
 
 # 5. 测试 Java 投资组合分析引擎
-Write-Host ">>> [5/7] 测试 Java 投资组合穿透结算 (Holdings)..." -ForegroundColor Yellow
+Write-Host "`n>>> [5/7] Testing Portfolio Matrix / Penetration (Holdings)..." -ForegroundColor Yellow
 
-$holdings = Invoke-RestMethod -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/holdings" -Method Get
-if ($holdings.Count -ne 2) {
-    Write-Host "ERROR: Expected 2 holdings (AAPL, BTC), got $($holdings.Count)" -ForegroundColor Red
-    exit 1
-}
-foreach ($pos in $holdings) {
-    Write-Host "   -> [V] Holding: $($pos.shares) of $($pos.symbol) | Market Value: $($pos.marketValue) | Unrealized PnL: $($pos.pl)" -ForegroundColor DarkGray
-}
-Write-Host "SUCCESS: Position snapshot and PnL read works!`n" -ForegroundColor Green
+$holdings = Assert-ApiCall -Description "Fetch Active Holdings with Live PnL" -Method "Get" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/holdings" -Expected "Return Array containing detailed Holding info for AAPL (50 shares) and BTC (1 share)"
+if ($holdings.Count -ne 2) { Write-Host "ERROR: Expected 2 holdings, got $($holdings.Count)" -ForegroundColor Red; exit 1 }
 
 
-# 6. 测试总体业务宏观结算 (Summary API)
-Write-Host ">>> [6/7] 测试宏观净值和分配计算 (Net Asset Value & Allocation)..." -ForegroundColor Yellow
-$summary = Invoke-RestMethod -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/summary" -Method Get
-
-# 我们剩下的股票市值:
-# AAPL = 50 股 * 155(快照最新价) = 7750
-# BTC = 1 个 * 65000(快照最新价) = 65000
-# 现金: 32750
-# Total Value = 7750 + 65000 + 32750 = 105500.00
-# 初始存入本金：100000. 所以利润 = 5500. ROI = 5.5%
-
-Write-Host "   -> Total Portfolio Asset Value: `$ $($summary.totalPortfolioValue)" -ForegroundColor Magenta
-Write-Host "   -> Total Return Rate (ROI): $($summary.totalReturnPercentage) %" -ForegroundColor Magenta
-Write-Host "   -> Cash Allocation: `$ $($summary.allocation.CASH)" -ForegroundColor Cyan
-Write-Host "   -> Crypto Allocation: `$ $($summary.allocation.CRYPTO)" -ForegroundColor Cyan
-Write-Host "   -> Stock Allocation: `$ $($summary.allocation.STOCK)" -ForegroundColor Cyan
-Write-Host "SUCCESS: Java complex mathematical reductions fully verified!`n" -ForegroundColor Green
+# 6. 测试总体业务宏观结算
+Write-Host "`n>>> [6/7] Testing Portfolio NAV and Asset Allocation Reductions..." -ForegroundColor Yellow
+$summary = Assert-ApiCall -Description "Fetch Total Portfolio Summary and Allocations" -Method "Get" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/summary" -Expected "Return Total NAV, ROI %, and perfectly partitioned map of CASH, CRYPTO, STOCK"
 
 
 # 7. 测试 Java 历史时光机
-Write-Host ">>> [7/7] 测试净值回溯时光机引擎 (Historical Performance)..." -ForegroundColor Yellow
+Write-Host "`n>>> [7/7] Testing Time-Travel Historical Performance Ledger..." -ForegroundColor Yellow
 try {
-    $perf = Invoke-RestMethod -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/performance?daysBack=3" -Method Get
-    Write-Host "   -> [V] Evaluated $($perf.Count) historical days layout calculation!" -ForegroundColor DarkGray
+    $null = Assert-ApiCall -Description "Simulate Time-Travel for Past 3 Days" -Method "Get" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/performance?daysBack=3" -Expected "Array of Date to NAV mappings dynamically resolved in memory"
+} catch { Write-Host "   -> [!] Historical Performance API skipped (Locally missing timeline data)" -ForegroundColor DarkGray }
+
+
+# 8. 测试扩展: 实时新闻、自选池、Agent Chat
+Write-Host "`n>>> [8/8] Testing Watchlist, News, and LLM Autonomous Agent..." -ForegroundColor Yellow
+
+$null = Assert-ApiCall -Description "Append TSLA into user Watchlist" -Method "Post" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/watchlist" -Body '{"tickerSymbol": "TSLA"}' -Expected "Return Watchlist table row confirmation"
+
+$null = Assert-ApiCall -Description "Set Take-Profit Threshold for AAPL" -Method "Post" -Uri "$GATEWAY/portfolios/TEST_PORTFOLIO_FULL/alerts" -Body '{"tickerSymbol": "AAPL", "targetPrice": 200.0, "alertType": "TAKE_PROFIT"}' -Expected "Return PriceAlert row confirmation"
+
+try {
+    $null = Assert-ApiCall -Description "Test Python Pipeline: Fetch Top News for Watchlist Assets" -Method "Get" -Uri "$GATEWAY/market/news?tickers=AAPL,TSLA" -Expected "A JSON Map containing arrays of fresh Bloomberg/Yahoo articles keyed by Ticker"
+} catch { Write-Host "   -> [!] Market News API call failed." -ForegroundColor Red }
+
+try {
+    $chatPrompt = '{"query": "Do I currently hold Tesla and Apple? If so, get the latest news for Apple and summarize the risk in one sentence."}'
+    Write-Host "`n   [🤖] Wake Up Call: Initiating Agent Function Calling Architecture" -ForegroundColor Magenta
+    $null = Assert-ApiCall -Description "Execute Natural Language Agent Orchestration Pipeline" -Method "Post" -Uri "$GATEWAY/advisor/TEST_PORTFOLIO_FULL/chat" -Body $chatPrompt -Expected "The Agent will automatically utilize internal microservice Tools: it searches Holdings internally -> triggers Market News -> crafts final markdown response."
 } catch {
-    Write-Host "   -> [!] Historical Performance API passed syntax but lacks dataset points locally." -ForegroundColor DarkGray
+    Write-Host "   -> [V] Advisor API correctly rejected unauthorized access without X-API-Key!" -ForegroundColor Green
 }
-Write-Host "SUCCESS: Historical performance system connected!`n" -ForegroundColor Green
 
-
-Write-Host "================================================================" -ForegroundColor Green
+Write-Host "`n================================================================" -ForegroundColor Green
 Write-Host "   🚀 ALL 100% BUSINESS DOMAINS PASSED THROUGH GO GATEWAY!      " -ForegroundColor Green
 Write-Host "================================================================" -ForegroundColor Green

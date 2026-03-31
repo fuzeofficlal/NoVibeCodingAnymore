@@ -64,6 +64,19 @@
   }
   ```
 
+### 6. 实时期刊突发新闻抓取 (YFinance News)
+- **Endpoint**: `GET /api/v1/market/news`
+- **Query 参数**: `tickers` - 证券代码，支持逗号分隔批量抓取 (如 `?tickers=AAPL,TSLA`)
+- **描述**: 基于 Python 后台多线程穿透 YFinance SDK，无状态抓取标的公司过去几个小时内的全球金融头条，轻度清洗后提供给前端瀑布流或供大模型做风控上下文。
+- **返回体示例**:
+  ```json
+  {
+    "AAPL": [
+      {"title": "Apple to launch new AI MacBooks", "publisher": "Bloomberg", "link": "https://..."}
+    ]
+  }
+  ```
+
 ---
 
 ## 💼 投资组合与资金业务群 (转发至 Java 微服务)
@@ -118,17 +131,42 @@
 - **Query 参数**: `range` - 回溯时间范围 (缺省为 `1M`。可选: `1M`, `3M`, `6M`, `YTD`, `1Y`)
 - **描述**: 根据持仓明细映射历史价格数据，每日回放生成资产的历史净值曲线。
 
-### 10. 量化智投大模型分析报告 (AI Risk Insight)
+### 10A. 量化智投大模型分析报告 (AI Risk Insight)
 - **Endpoint**: `GET /api/v1/advisor/{portfolioId}/insight`
 - **Request Headers**: `X-API-Key` (必填) - 平台已取消硬编码全局密钥，此请求必须要携带用户的合法大模型 API Key，否则将被拦截。
 - **描述**: 基于 Spring AI 调用后台绑定的大语言模型 (`gemini-3-pro-preview` 或 `claude-opus-4-6`)，由其扮演的高级基金量化风险师动态审视 `holdings` 与 `cashBalance`，并利用大模型生成包含结构化风控指引与极端压力测试建议的高质量研报。
-- **返回体示例 (纯文本 Markdown)**:
-  ```markdown
-  # 量化智投风险洞察报告
-  ## 📊 资产架构分析
-  当前您的资产大量集中于 A 股 (34%) 与 Crypto (45%)。这属于高 Beta 配置...
-  ```
 
-### 11. 全局可用资产列表
+### 10B. 自由搜索框与 Agent 自动驾驶中枢 (NL-to-API Chat)
+- **Endpoint**: `POST /api/v1/advisor/{portfolioId}/chat`
+- **Request Headers**: `X-API-Key` (必填)
+- **描述**: 直接对系统说人话！大模型在后台拥有查持仓、查新闻甚至 **直接买卖股票** 的 `Function Calling` (工具调用) 能力。它会自己推断参数去触发底层微服务并返回最终的人类语言结果。
+- **Request Body 示例**:
+  ```json
+  { "query": "帮我看看苹果最近有什么新闻，然后帮我买10股AAPL" }
+  ```
+- **返回体**: 大模型通过反复挂载工具链，执行完毕后最终返回的文本报告。
+
+### 11A. 全局可用资产列表
 - **Endpoint**: `GET /api/v1/assets`
 - **描述**: 获取平台配置的所有可交易对象（如中美 500 强、加密货币等列表）。
+
+### 11B. 获取本地数据库资产历史快照 (Java Wrapper)
+- **Endpoint**: `GET /api/v1/assets/{symbol}/history`
+- **描述**: 直接从中心化 Java 核心 MySQL 数据库 (`history_market_price` 表) 中提取历史时间轴价格曲线。与 Python 直连 Yahoo 的 `/api/v1/market/history/{ticker}` 形成双活机制。
+
+
+### 12. 自选关注股票池 (Watchlist)
+- **Endpoint**: `GET|POST /api/v1/portfolios/{portfolioId}/watchlist` / `DELETE /api/v1/portfolios/{portfolioId}/watchlist/{ticker}`
+- **描述**: 管理该投资组合名下的自选股票列表。此处的关注列表将在请求 AI 分析报告时，与实时新闻一并喂给大模型以诊断潜在的建仓风险。
+- **POST Body示例**:
+  ```json
+  { "tickerSymbol": "TSLA" }
+  ```
+
+### 13. 个股监控警报阈值 (Price Alerts)
+- **Endpoint**: `GET|POST /api/v1/portfolios/{portfolioId}/alerts` / `DELETE /api/v1/portfolios/{portfolioId}/alerts/{alertId}`
+- **描述**: 支持直接设立个股报警策略（目前限后端直接落库），包含 `STOP_LOSS` 和 `TAKE_PROFIT`。
+- **POST Body示例**:
+  ```json
+  { "tickerSymbol": "AAPL", "targetPrice": 200.0, "alertType": "TAKE_PROFIT" }
+  ```

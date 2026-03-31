@@ -7,6 +7,21 @@ echo   [ Sequence: Cleanup - Go - Java - Python ]
 echo ============================================================
 echo.
 
+setlocal EnableDelayedExpansion
+echo ============================================================
+echo   [CONFIG] AI Global API Key
+echo ============================================================
+set /p globalApiKey="Please input your OpenAI/Gemini API Key (Press Enter to skip): "
+
+if not "!globalApiKey!"=="" (
+    set "OPENAI_API_KEY=!globalApiKey!"
+    echo [SUCCESS] Global API Key injected into environment variables!
+    echo.
+) else (
+    echo [WARNING] No Global API Key provided. Make sure to use X-API-Key in HTTP headers.
+    echo.
+)
+
 echo [0/4] Sweeping old processes on Ports 8090, 8080, 8081, 8000...
 for %%P in (8090 8080 8081 8000) do (
     for /f "tokens=5" %%T in ('C:\Windows\System32\netstat.exe -ano ^| C:\Windows\System32\findstr.exe :%%P') do (

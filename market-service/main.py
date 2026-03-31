@@ -115,7 +115,36 @@ async def get_historical_prices(
 async def get_sma_indicator(ticker: str, days: int = Query(50, description="Rolling window days (e.g. 20, 50, 200)")):
     return quant_engine.calculate_sma(ticker, days)
 
-# WebSocket Real-Time Stream Endpoint
+# 新闻尝试抓取
+import yfinance as yf
+
+@app.get("/api/v1/market/news")
+def get_market_news(tickers: str = Query(..., description="Comma-separated ticker symbols (e.g. AAPL,MSFT)")):
+    news_aggregates = {}
+    if not tickers:
+        return news_aggregates
+        
+    ticker_list = [t.strip().upper() for t in tickers.split(',')]
+    for t in ticker_list:
+        try:
+            raw_news = yf.Ticker(t).news
+            cleaned = []
+            for item in raw_news[:4]: # Return Top 4 recent news per ticker
+                article = item.get("content", {})
+                cleaned.append({
+                    "title": article.get("title", ""),
+                    "publisher": article.get("provider", {}).get("displayName", ""),
+                    "providerPublishTime": article.get("pubDate", ""),
+                    "link": article.get("clickThroughUrl", {}).get("url", "")
+                })
+            news_aggregates[t] = cleaned
+        except Exception as e:
+            print(f"[NEWS FETCH ERROR] {t}: {e}")
+            news_aggregates[t] = []
+            
+    return news_aggregates
+
+# 提供前端的websocket 来提供实施更新能力
 @app.websocket("/api/v1/market/ws")
 async def websocket_endpoint(websocket: WebSocket):
     from websocket_manager import manager

@@ -13,22 +13,61 @@ public class AdvisorService {
 
     private static final String CORE_SERVICE_URL = "http://localhost:8080";
 
+    // register agent toolsand functional calling ab
+    private final org.springframework.ai.model.function.FunctionCallbackContext functionCallbackContext;
+    private final String defaultApiKey;
+
     public AdvisorService(RestClient restClient,
             @org.springframework.beans.factory.annotation.Value("${spring.ai.openai.base-url}") String defaultBaseUrl,
-            @org.springframework.beans.factory.annotation.Value("${spring.ai.openai.chat.options.model:gemini-3-pro-preview}") String defaultModel) {
+            @org.springframework.beans.factory.annotation.Value("${spring.ai.openai.chat.options.model:gemini-3-pro-preview}") String defaultModel,
+            @org.springframework.beans.factory.annotation.Value("${OPENAI_API_KEY:}") String defaultApiKey,
+            org.springframework.beans.factory.ObjectProvider<org.springframework.ai.model.function.FunctionCallbackContext> functionCallbackProvider) {
         this.restClient = restClient;
         this.defaultBaseUrl = defaultBaseUrl;
         this.defaultModel = defaultModel;
+        this.defaultApiKey = defaultApiKey;
+        this.functionCallbackContext = functionCallbackProvider.getIfAvailable();
+    }
+
+    public String chatWithAgent(String portfolioId, String query, String overrideApiKey) {
+        String keyToUse = overrideApiKey;
+        if (keyToUse == null || keyToUse.isBlank()) {
+            keyToUse = this.defaultApiKey;
+        }
+        if (keyToUse == null || keyToUse.isBlank()) {
+            return "**缺少 API 密钥**\n\n请求头缺少 `X-API-Key`，no 全局 API Key。";
+        }
+
+        var openAiApi = new org.springframework.ai.openai.api.OpenAiApi(this.defaultBaseUrl, keyToUse);
+        var options = org.springframework.ai.openai.OpenAiChatOptions.builder().withModel(this.defaultModel).build();
+        
+        // 传递tooling calling ab
+        var openAiChatModel = new org.springframework.ai.openai.OpenAiChatModel(openAiApi, options, this.functionCallbackContext, org.springframework.ai.retry.RetryUtils.DEFAULT_RETRY_TEMPLATE);
+        
+        ChatClient activeClient = ChatClient.create(openAiChatModel).mutate()
+                .defaultSystem(
+                        "You are an AI Agent running inside a quantitative finance system. You have tools at your disposal to fetch news, get portfolio summaries, and execute BUY/SELL transactions for the user. Always use these tools to fulfill User Requests. Never hallucinate data. The active user's portfolio ID is " + portfolioId + " .")
+                .defaultFunctions("getMarketNews", "executeTransaction", "getPortfolioSummary", "getPortfolioHoldings")
+                .build();
+
+        return activeClient.prompt()
+                .user(query)
+                .call()
+                .content();
     }
 
     public String analyzePortfolioRisk(String portfolioId, String overrideApiKey) {
-        if (overrideApiKey == null || overrideApiKey.isBlank()) {
-            return "⚠️ **缺少 API 密钥**\n\n请求头需要配置 `X-API-Key` 。Public的项目公开硬编码Key等死吧";
+        String keyToUse = overrideApiKey;
+        if (keyToUse == null || keyToUse.isBlank()) {
+            keyToUse = this.defaultApiKey;
+        }
+        if (keyToUse == null || keyToUse.isBlank()) {
+            return " **缺少 API 密钥**\n\n请求头缺少 `X-API-Key`，无全局 API Key。";
         }
 
-        var openAiApi = new org.springframework.ai.openai.api.OpenAiApi(this.defaultBaseUrl, overrideApiKey);
+        var openAiApi = new org.springframework.ai.openai.api.OpenAiApi(this.defaultBaseUrl, keyToUse);
         var options = org.springframework.ai.openai.OpenAiChatOptions.builder().withModel(this.defaultModel).build();
-        var openAiChatModel = new org.springframework.ai.openai.OpenAiChatModel(openAiApi, options);
+        var openAiChatModel = new org.springframework.ai.openai.OpenAiChatModel(openAiApi, options, this.functionCallbackContext, org.springframework.ai.retry.RetryUtils.DEFAULT_RETRY_TEMPLATE);
         ChatClient activeClient = ChatClient.create(openAiChatModel).mutate()
                 .defaultSystem(
                         "你是一位华尔街顶级量化基金的风险架构师与高级投资顾问。你的任务是收到用户的投资组合财务数据后，进行专业的评估。请以Markdown格式输出你的见解。分析必须包含：1.基于资产架构的风险评分；2.极端风险警告(黑天鹅/回调承受力)；3.对仓位管理的建议调整。语气需要极客、专业、且直击本质。请不要输出任何多余的寒暄。")
@@ -45,18 +84,58 @@ public class AdvisorService {
         }
 
         String holdingsJson = "[]";
+        java.util.Set<String> allTickers = new java.util.HashSet<>();
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
         try {
             holdingsJson = restClient.get()
                     .uri(CORE_SERVICE_URL + "/api/v1/portfolios/{id}/holdings", portfolioId)
                     .retrieve()
                     .body(String.class);
+            com.fasterxml.jackson.databind.JsonNode holdingsNode = mapper.readTree(holdingsJson);
+            if (holdingsNode.isArray()) {
+                holdingsNode.forEach(h -> {
+                    if (h.has("tickerSymbol")) allTickers.add(h.get("tickerSymbol").asText());
+                });
+            }
         } catch (Exception e) {
             holdingsJson = "[]";
         }
 
-        String combinedContext = String.format("{\"Portfolio_Summary\": %s, \"Current_Holdings\": %s}", summaryJson,
-                holdingsJson);
-        String userPrompt = "以下是我目前的持仓快照与账户资金罗盘：" + combinedContext + "\n请为我生成一份详细的《量化智投风险洞察报告》。";
+        String watchlistJson = "[]";
+        try {
+            watchlistJson = restClient.get()
+                    .uri(CORE_SERVICE_URL + "/api/v1/portfolios/{id}/watchlist", portfolioId)
+                    .retrieve()
+                    .body(String.class);
+            com.fasterxml.jackson.databind.JsonNode watchlistNode = mapper.readTree(watchlistJson);
+            if (watchlistNode.isArray()) {
+                watchlistNode.forEach(w -> {
+                    if (w.has("tickerSymbol")) allTickers.add(w.get("tickerSymbol").asText());
+                });
+            }
+        } catch (Exception e) {
+            watchlistJson = "[]";
+        }
+
+        String newsJson = "{}";
+        if (!allTickers.isEmpty()) {
+            String tickerQuery = String.join(",", allTickers);
+            try {
+                // calls to Python via internal Gateway port 8090 proxy or directly to 8000
+                newsJson = restClient.get()
+                        .uri("http://localhost:8090/api/v1/market/news?tickers=" + tickerQuery)
+                        .retrieve()
+                        .body(String.class);
+            } catch (Exception e) {
+                newsJson = "{\"error\": \"News fetch failed.\"}";
+            }
+        }
+
+        String combinedContext = String.format("{\"Portfolio_Summary\": %s, \"Current_Holdings\": %s, \"Watchlist_Assets\": %s, \"Latest_News_Stream\": %s}", 
+                summaryJson, holdingsJson, watchlistJson, newsJson);
+
+        String userPrompt = "以下是我目前的财务罗盘结构（持仓+自选池），以及相关股票最近几小时的市场突发新闻：" + combinedContext + "\n请为我生成一份详细的《量化智投风险洞察报告》，要求充分结合 Latest_News_Stream 的信息，评估个股面临的情绪面/消息面风险。";
 
         return activeClient.prompt()
                 .user(userPrompt)

@@ -10,7 +10,7 @@ from models import HistoricalPrice
 def calculate_sma(ticker: str, days: int) -> List[Dict]:
    
     with engine.connect() as conn:
-        query = select(HistoricalPrice.trade_date, HistoricalPrice.close_price)\
+        query = select(HistoricalPrice.trade_date.label('trade_date'), HistoricalPrice.close_price)\
             .where(HistoricalPrice.ticker_symbol == ticker)\
             .order_by(HistoricalPrice.trade_date.desc())\
             .limit(days + 200)

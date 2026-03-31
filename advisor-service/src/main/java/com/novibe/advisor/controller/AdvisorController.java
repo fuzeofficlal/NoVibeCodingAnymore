@@ -21,4 +21,18 @@ public class AdvisorController {
         String insightReport = advisorService.analyzePortfolioRisk(portfolioId, apiKeyHeader);
         return ResponseEntity.ok(insightReport);
     }
+
+    public record ChatQueryRequest(String query) {}
+
+    @PostMapping("/{portfolioId}/chat")
+    public ResponseEntity<String> chatWithAgent(
+            @PathVariable String portfolioId,
+            @RequestHeader(value = "X-API-Key", required = false) String apiKeyHeader,
+            @RequestBody ChatQueryRequest request) {
+        if (request == null || request.query() == null || request.query().isBlank()) {
+            return ResponseEntity.badRequest().body("Query cannot be empty.");
+        }
+        String response = advisorService.chatWithAgent(portfolioId, request.query(), apiKeyHeader);
+        return ResponseEntity.ok(response);
+    }
 }

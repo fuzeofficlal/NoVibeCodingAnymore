@@ -63,10 +63,35 @@ CREATE TABLE portfolio_transaction (
 ALTER TABLE company_info
     ADD COLUMN asset_type VARCHAR(20) NOT NULL DEFAULT 'STOCK';
 
--- 表6：Market Price (实时快照价格表，由微服务更新)
+-- 表6：Market Price 实时 价格
 CREATE TABLE market_price (
     ticker_symbol VARCHAR(50) PRIMARY KEY,
     current_price DECIMAL(15, 4) NOT NULL,
     last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticker_symbol) REFERENCES company_info(ticker_symbol)
+);
+
+
+
+-- 表7：Watchlist 股票池
+CREATE TABLE watchlist (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    portfolio_id VARCHAR(50) NOT NULL,
+    ticker_symbol VARCHAR(50) NOT NULL,
+    added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (portfolio_id) REFERENCES portfolio(portfolio_id),
+    FOREIGN KEY (ticker_symbol) REFERENCES company_info(ticker_symbol),
+    UNIQUE KEY uk_portfolio_ticker (portfolio_id, ticker_symbol)
+);
+
+-- 表8：PriceAlert 个股止盈止损条件 触发警告条件
+CREATE TABLE price_alert (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    portfolio_id VARCHAR(50) NOT NULL,
+    ticker_symbol VARCHAR(50) NOT NULL,
+    target_price DECIMAL(15, 4) NOT NULL,
+    alert_type VARCHAR(20) NOT NULL, -- 'STOP_LOSS' 止损, 'TAKE_PROFIT' 止盈
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (portfolio_id) REFERENCES portfolio(portfolio_id),
     FOREIGN KEY (ticker_symbol) REFERENCES company_info(ticker_symbol)
 );
