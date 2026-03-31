@@ -62,3 +62,11 @@ CREATE TABLE portfolio_transaction (
 
 ALTER TABLE company_info
     ADD COLUMN asset_type VARCHAR(20) NOT NULL DEFAULT 'STOCK';
+
+-- 表6：Market Price (实时快照价格表，由微服务更新)
+CREATE TABLE market_price (
+    ticker_symbol VARCHAR(50) PRIMARY KEY,
+    current_price DECIMAL(15, 4) NOT NULL,
+    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticker_symbol) REFERENCES company_info(ticker_symbol)
+);

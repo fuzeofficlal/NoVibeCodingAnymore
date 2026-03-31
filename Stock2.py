@@ -1,7 +1,7 @@
 import pymysql
 import yfinance as yf
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import requests
 import io
@@ -98,8 +98,26 @@ def fetch_and_save_historical_data(conn, stock_list):
                                    UPDATE company_name=VALUES(company_name)
                                    ''', (ticker, name))
 
+                    # --- 增量更新核心逻辑 ---
+                    cursor.execute("SELECT MAX(timestamp) FROM market_data WHERE ticker_symbol = %s", (ticker,))
+                    result = cursor.fetchone()
+                    max_date = result[0] if result and result[0] else None
+
+                    start_date_str = "2021-01-01"
+                    if max_date is not None:
+                        # 修复与纽约时差导致的 startDate > endDate 报错：
+                        # 直接用 max_date 覆盖请求，ON DUPLICATE KEY UPDATE 会自动更新重叠的一天，
+                        # 可以顺便修复之前抓取时的半截残缺数据（盘中数据被收盘数据覆盖）
+                        start_date_str = max_date.strftime('%Y-%m-%d')
+                        
+                        # 如果数据库里的时间已经达到或超过了您这边的「今天」，就无需再去求雅虎了，直接跳过
+                        today_str = datetime.now().strftime('%Y-%m-%d')
+                        if start_date_str >= today_str:
+                            print(f"[{index}/{total_stocks}] ⚡ 跳过: {ticker} ({name}) - 已经是最新数据截至 {max_date.strftime('%Y-%m-%d')}")
+                            break # 这只股票已是最新，跳出重试循环进入下一只
+
                     stock = yf.Ticker(ticker)
-                    hist = stock.history(start="2021-01-01")
+                    hist = stock.history(start=start_date_str)
 
                     if not hist.empty:
                         records = []
@@ -151,6 +169,17 @@ if __name__ == "__main__":
     db_connection = init_db()
     sp500_stocks = get_sp500_tickers()
 
-    fetch_and_save_historical_data(db_connection, sp500_stocks)
+    EXTRA_TICKERS = [
+        ('BTC-USD', 'Bitcoin'),
+        ('ETH-USD', 'Ethereum'),
+        ('USDT-USD', 'Tether'),
+        ('TLT', 'iShares 20+ Year Treasury Bond ETF'),
+        ('AGG', 'iShares Core US Aggregate Bond ETF'),
+        ('^TNX', 'Treasury Yield 10 Years')
+    ]
+    
+    all_stocks = sp500_stocks + EXTRA_TICKERS
+
+    fetch_and_save_historical_data(db_connection, all_stocks)
 
     db_connection.close()
