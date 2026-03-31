@@ -30,4 +30,8 @@ public class MarketDataService {
         return marketDataRepository.findTopByTickerSymbolOrderByTimestampDesc(tickerSymbol)
                 .orElseThrow(() -> new ResourceNotFoundException("No market data found for ticker: " + tickerSymbol));
     }
+
+    public List<MarketData> getHistoricalData(String tickerSymbol) {
+        return marketDataRepository.findByTickerSymbolOrderByTimestampAsc(tickerSymbol);
+    }
 }

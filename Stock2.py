@@ -9,7 +9,7 @@ import random
 import os
 import json
 
-# 1. 数据库配置 (使用新项目的 newport_db)
+
 DB_CONFIG = {
     'host': '127.0.0.1',
     'port': 3306,
@@ -20,7 +20,6 @@ DB_CONFIG = {
     'autocommit': True
 }
 
-# 2. 初始化数据库和双表结构
 def init_db():
     temp_conn = pymysql.connect(
         host=DB_CONFIG['host'], port=DB_CONFIG['port'],
@@ -32,7 +31,7 @@ def init_db():
 
     conn = pymysql.connect(**DB_CONFIG)
     with conn.cursor() as cursor:
-        # 表1: 公司基本信息表
+
         cursor.execute('''
                        CREATE TABLE IF NOT EXISTS company_info
                        (
@@ -40,7 +39,6 @@ def init_db():
                            company_name VARCHAR(255)
                        )
                        ''')
-        # 表2: 新项目适配的 market_data 表 (适配 Spring Boot JPA EntityMarketData)
         cursor.execute('''
                        CREATE TABLE IF NOT EXISTS market_data
                        (
@@ -53,17 +51,14 @@ def init_db():
     return conn
 
 
-# 3. 获取标普 500 列表
 def get_sp500_tickers():
     cache_file = 'sp500_cache.json'
 
-    # 檢查本地是否已經有緩存文件
     if os.path.exists(cache_file):
         print("📦 發現本地緩存！正在從 sp500_cache.json 讀取股票列表...")
         with open(cache_file, 'r', encoding='utf-8') as f:
             return json.load(f)
 
-    # 如果沒有緩存，則從維基百科抓取
     print("🌐 緩存不存在，正在從維基百科獲取 S&P 500 股票列表...")
     url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
     headers = {
@@ -79,7 +74,6 @@ def get_sp500_tickers():
 
     stock_list = list(zip(tickers, names))
 
-    # 將抓取到的名單寫入本地 JSON 緩存文件
     print("💾 正在將股票名單保存到本地緩存 (sp500_cache.json)...")
     with open(cache_file, 'w', encoding='utf-8') as f:
         json.dump(stock_list, f, ensure_ascii=False, indent=4)
@@ -87,7 +81,6 @@ def get_sp500_tickers():
     return stock_list
 
 
-# 4. 抓取历史数据 
 def fetch_and_save_historical_data(conn, stock_list):
     total_stocks = len(stock_list)
     print(f"\n准备抓取 {total_stocks} 只股票从 2021-01-01 至今的历史数据...")
@@ -98,14 +91,13 @@ def fetch_and_save_historical_data(conn, stock_list):
 
             for attempt in range(max_retries):
                 try:
-                    # 1. 插入公司信息
+
                     cursor.execute('''
                                    INSERT INTO company_info (ticker_symbol, company_name)
                                    VALUES (%s, %s) ON DUPLICATE KEY
                                    UPDATE company_name=VALUES(company_name)
                                    ''', (ticker, name))
 
-                    # 2. 获取历史数据
                     stock = yf.Ticker(ticker)
                     hist = stock.history(start="2021-01-01")
 
@@ -117,14 +109,13 @@ def fetch_and_save_historical_data(conn, stock_list):
                             close_price = float(row['Close'])
                             records.append((ticker, trade_date_str, close_price))
 
-                        # 批量写入到 market_data
                         sql = '''
                               INSERT INTO market_data (ticker_symbol, timestamp, close_price)
                               VALUES (%s, %s, %s) ON DUPLICATE KEY 
                               UPDATE close_price = VALUES(close_price)
                               '''
                         cursor.executemany(sql, records)
-                        # 为了性能考虑，每50批提交一次
+
                         if index % 50 == 0:
                             conn.commit()
 
@@ -132,7 +123,7 @@ def fetch_and_save_historical_data(conn, stock_list):
                     else:
                         print(f"[{index}/{total_stocks}] 警告: {ticker} 没有返回历史数据")
 
-                    # 成功后，跳出重试循环
+
                     break
 
                 except Exception as e:
@@ -152,9 +143,7 @@ def fetch_and_save_historical_data(conn, stock_list):
 
             # 正常情况下的基础休眠
             time.sleep(random.uniform(1.0, 3.0))
-        
-        # 确保最后的数据被提交
-        conn.commit()
+            conn.commit()
 
     print("\n✅ 所有历史数据写入流程结束！")
 

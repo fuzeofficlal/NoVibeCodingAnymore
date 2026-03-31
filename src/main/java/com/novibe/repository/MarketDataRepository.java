@@ -13,6 +13,9 @@ public interface MarketDataRepository extends JpaRepository<MarketData, MarketDa
     // GET /api/assets/{ticker}/price 暂定 获取某个资产的最新价格
     Optional<MarketData> findTopByTickerSymbolOrderByTimestampDesc(String tickerSymbol);
 
+    // 获取某个资产的全部历史价格
+    List<MarketData> findByTickerSymbolOrderByTimestampAsc(String tickerSymbol);
+
     // 获取一个资产池在 某个timestamp的 资产总额
     List<MarketData> findByTickerSymbolInAndTimestampBetweenOrderByTimestampAsc(List<String> tickers, java.time.LocalDateTime start, java.time.LocalDateTime end);
 }
