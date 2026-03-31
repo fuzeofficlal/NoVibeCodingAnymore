@@ -39,7 +39,16 @@ func main() {
 		_, _ = w.Write([]byte(`{"status":502,"message":"Market Data service unavailable. Please start Python FastAPI."}`))
 	}
 
-	//
+	// AI Advisor Reverse Proxy
+	advisorTarget, _ := url.Parse("http://localhost:8081")
+	advisorRP := httputil.NewSingleHostReverseProxy(advisorTarget)
+	advisorRP.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"status":502,"message":"Advisor service unavailable. Please start the AI Spring Boot server."}`))
+	}
+
+	// Dynamic Routing
 	r.Any("/api/v1/*proxyPath", func(c *gin.Context) {
 		proxyPath := c.Param("proxyPath")
 		
@@ -48,6 +57,9 @@ func main() {
 		if len(proxyPath) >= 7 && proxyPath[:7] == "/market" {
 			c.Request.URL.Path = "/api/v1" + proxyPath
 			marketRP.ServeHTTP(c.Writer, c.Request)
+		} else if len(proxyPath) >= 8 && proxyPath[:8] == "/advisor" {
+			c.Request.URL.Path = "/api/v1" + proxyPath
+			advisorRP.ServeHTTP(c.Writer, c.Request)
 		} else {
 			// or its java spring
 			c.Request.URL.Path = "/api/v1" + proxyPath
