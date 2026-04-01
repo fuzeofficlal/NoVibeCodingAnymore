@@ -68,6 +68,7 @@ export const api = {
     return Object.fromEntries(results);
   },
   getPortfolio: (portfolioId) => request(`/portfolios/${portfolioId}`),
+  getPortfolios: () => request("/portfolios"),
   createPortfolio: (payload) => request("/portfolios", { method: "POST", body: JSON.stringify(payload) }),
   getSummary: (portfolioId) => request(`/portfolios/${portfolioId}/summary`),
   getHoldings: (portfolioId) => request(`/portfolios/${portfolioId}/holdings`),
@@ -98,7 +99,12 @@ export const api = {
       headers,
       body: JSON.stringify({ query })
     });
-  }
+  },
+  getAlerts: (portfolioId) => request(`/portfolios/${portfolioId}/alerts`),
+  addAlert: (portfolioId, payload) => request(`/portfolios/${portfolioId}/alerts`, { method: "POST", body: JSON.stringify(payload) }),
+  removeAlert: (portfolioId, alertId) => request(`/portfolios/${portfolioId}/alerts/${alertId}`, { method: "DELETE" }),
+  getSma: (ticker, days = 50) => request(`/market/indicators/sma/${encodeURIComponent(ticker)}?days=${days}`),
+  syncMarket: () => request(`/market/sync`, { method: "POST" })
 };
 
 export function openMarketSocket(onMessage, onError) {

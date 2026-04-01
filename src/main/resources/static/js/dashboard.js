@@ -174,4 +174,23 @@ async function loadDashboard() {
   }
 }
 
+async function forceMarketSync() {
+  const btn = document.getElementById("forceSyncBtn");
+  if (!btn) return;
+  const originalText = btn.textContent;
+  btn.textContent = "Syncing...";
+  btn.disabled = true;
+  try {
+    await api.syncMarket();
+    toast("Market data sync triggered successfully.", "success");
+  } catch (error) {
+    toast(`Sync Failed: ${error.message}`, "error");
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("forceSyncBtn")?.addEventListener("click", forceMarketSync);
+
 loadDashboard();

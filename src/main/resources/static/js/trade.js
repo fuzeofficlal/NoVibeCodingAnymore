@@ -10,10 +10,13 @@ const state = {
 };
 
 function populateTickerSelect(type) {
-  const select = document.getElementById("tradeTicker");
+  const datalist = document.getElementById("tradeTickerList");
+  const input = document.getElementById("tradeTicker");
   const tickers = state.universe[type] || [];
-  select.innerHTML = tickers.map((ticker) => `<option value="${ticker}">${ticker}</option>`).join("");
+  datalist.innerHTML = tickers.map((ticker) => `<option value="${ticker}">${state.assetMap.get(ticker)?.name || ticker}</option>`).join("");
+  if (tickers.length > 0 && !tickers.includes(input.value)) input.value = tickers[0];
   updateQuotePreview();
+  syncSelectedQuote();
 }
 
 async function refreshPortfolio() {
@@ -84,6 +87,7 @@ async function loadTradePage() {
     }
     await refreshPortfolio();
     updateQuotePreview();
+    syncSelectedQuote();
   } catch (error) {
     setHTML("tradeStatus", `<div class="status-banner">Unable to initialize trading page: ${error.message}</div>`);
   }
@@ -107,6 +111,21 @@ async function syncSelectedQuote() {
     const [quote] = await api.getPrices([ticker]);
     state.priceMap[ticker] = Number(quote?.current_price || 0);
     updateQuotePreview();
+    
+    try {
+      setText("smaValue", "...");
+      const days = document.getElementById("smaDays").value || 50;
+      const smaData = await api.getSma(ticker, days);
+      if (smaData && smaData.length > 0) {
+        setText("smaValue", formatMoney(smaData[smaData.length - 1].sma));
+      } else {
+        setText("smaValue", "--");
+      }
+    } catch (e) {
+      console.warn("SMA fetch error", e);
+      setText("smaValue", "--");
+    }
+
   } catch (error) {
     toast(`Unable to refresh price for ${ticker}: ${error.message}`, "error");
   }
@@ -195,6 +214,7 @@ document.getElementById("assetType")?.addEventListener("change", (event) => popu
 document.getElementById("tradeTicker")?.addEventListener("change", syncSelectedQuote);
 document.getElementById("tradeQuantity")?.addEventListener("input", updateQuotePreview);
 document.getElementById("tradeSide")?.addEventListener("change", updateQuotePreview);
+document.getElementById("smaDays")?.addEventListener("change", syncSelectedQuote);
 document.getElementById("refreshQuote")?.addEventListener("click", syncSelectedQuote);
 document.getElementById("tradeForm")?.addEventListener("submit", submitTrade);
 document.getElementById("cashFlowForm")?.addEventListener("submit", submitCashFlow);

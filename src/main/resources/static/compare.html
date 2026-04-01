@@ -14,6 +14,7 @@
         <div class="brand-copy"><h1>NoVibe</h1><p>Relative Performance Lab</p></div>
       </div>
       <nav class="nav-stack">
+        <a class="nav-link" href="/"><span>Home</span><span>00</span></a>
         <a class="nav-link" href="/dashboard.html"><span>Dashboard</span><span>01</span></a>
         <a class="nav-link" href="/trade.html"><span>Trade</span><span>02</span></a>
         <a class="nav-link active" href="/compare.html"><span>Compare</span><span>03</span></a>
@@ -55,11 +56,13 @@
               </div>
               <div class="form-field">
                 <label class="label" for="compareA">Asset A</label>
-                <select class="select" id="compareA"></select>
+                <input class="input" list="compareAList" id="compareA" placeholder="Type a symbol..." autocomplete="off">
+                <datalist id="compareAList"></datalist>
               </div>
               <div class="form-field">
-                <label class="label" for="compareB">Asset B</label>
-                <select class="select" id="compareB"></select>
+                <label class="label" for="compareB">Asset B (Optional)</label>
+                <input class="input" list="compareBList" id="compareB" placeholder="Leave blank to single-view..." autocomplete="off">
+                <datalist id="compareBList"></datalist>
               </div>
             </div>
             <div class="range-group">

@@ -25,6 +25,7 @@ services:
     environment:
       - DB_HOST=novibe-mysql
       - TZ=UTC
+      - ADVISOR_SERVICE_URL=http://novibe-advisor:8081
     ports:
       - "8080:8080"
     depends_on:

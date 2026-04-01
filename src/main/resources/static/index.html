@@ -71,18 +71,25 @@
             <form id="openAccountForm" class="grid">
               <div class="form-grid">
                 <div class="form-field">
-                  <label class="label" for="portfolioName">Portfolio Name</label>
+                  <label class="label" for="portfolioName">New Portfolio Name</label>
                   <input class="input" id="portfolioName" placeholder="Global Macro Core">
                 </div>
                 <div class="form-field">
                   <label class="label" for="initialDeposit">Initial Deposit</label>
                   <input class="input" id="initialDeposit" type="number" min="0.01" step="0.01" placeholder="50000">
                 </div>
+                
+                <div class="form-field full" style="margin-top: 8px; padding-top: 16px; border-top: 1px dashed rgba(255,255,255,0.1);">
+                  <label class="label" for="loadPortfolio">Or Switch To Existing Portfolio</label>
+                  <div style="display: flex; gap: 10px;">
+                    <select id="loadPortfolio" class="select" style="flex:1;"><option value="">Loading portfolios...</option></select>
+                    <button type="button" id="resumeSelectedBtn" class="button-secondary">Switch & Open</button>
+                  </div>
+                </div>
               </div>
-              <div class="button-row">
-                <button class="button" type="submit">Create Portfolio</button>
-                <a class="button-secondary" href="/dashboard.html">Open Dashboard</a>
-                <button id="resumeButton" class="button-secondary" type="button">Resume Saved Portfolio</button>
+              <div class="button-row" style="margin-top: 18px;">
+                <button class="button" type="submit">Create New Portfolio</button>
+                <a class="button-secondary" href="/dashboard.html">Open Current Dashboard</a>
               </div>
             </form>
           </div>

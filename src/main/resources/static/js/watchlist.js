@@ -4,13 +4,16 @@ import { bindModal, buildUniverse, getPortfolioContext, setHTML, setText, showMo
 const state = {
   assets: [],
   universe: { STOCK: [], BOND: [], CRYPTO: [] },
-  watchlist: []
+  watchlist: [],
+  alerts: []
 };
 
 function populateSelect(type) {
-  const select = document.getElementById("watchlistTicker");
-  const options = (state.universe[type] || []).map((ticker) => `<option value="${ticker}">${ticker}</option>`).join("");
-  select.innerHTML = options;
+  const datalist = document.getElementById("watchlistTickerList");
+  const input = document.getElementById("watchlistTicker");
+  const tickers = state.universe[type] || [];
+  datalist.innerHTML = tickers.map((ticker) => `<option value="${ticker}">${ticker}</option>`).join("");
+  if (tickers.length > 0 && !tickers.includes(input.value)) input.value = tickers[0];
 }
 
 function renderWatchlist() {
@@ -43,6 +46,77 @@ function renderWatchlist() {
       }
     });
   });
+}
+
+async function loadAlertFocus() {
+  const context = getPortfolioContext();
+  if (!context.id) return;
+  try {
+    const holdings = await api.getHoldings(context.id).catch(() => []);
+    const watchlist = state.watchlist || [];
+    const symbolSet = new Set();
+    holdings.forEach(h => {
+      const sym = h.symbol || h.tickerSymbol;
+      if (sym) symbolSet.add(sym);
+    });
+    watchlist.forEach(w => {
+      const sym = w.tickerSymbol || w.symbol;
+      if (sym) symbolSet.add(sym);
+    });
+    
+    const sorted = Array.from(symbolSet).sort();
+    const datalist = document.getElementById("alertTickerList");
+    const input = document.getElementById("alertTicker");
+    if (!datalist) return;
+    datalist.innerHTML = sorted.map(ticker => `<option value="${ticker}">${ticker}</option>`).join("");
+    if (sorted.length > 0 && !sorted.includes(input.value)) input.value = sorted[0];
+  } catch (err) {
+    console.warn("Failed to resolve alert focus symbols", err);
+  }
+}
+
+function renderAlerts() {
+  const mount = document.getElementById("alertList");
+  if (!mount) return;
+  if (!state.alerts.length) {
+    mount.innerHTML = `<div class="empty-state">No price alerts active.</div>`;
+    return;
+  }
+  mount.innerHTML = state.alerts.map((item) => `
+    <div class="watch-chip">
+      <div>
+        <div class="ticker">${item.tickerSymbol}</div>
+        <div class="muted">${item.alertType === "TAKE_PROFIT" ? "Take Profit >=" : "Stop Loss <="} $${Number(item.targetPrice).toFixed(2)}</div>
+      </div>
+      <div class="chip-actions">
+        <button class="chip-action" type="button" data-remove-alert="${item.id}">Delete</button>
+      </div>
+    </div>
+  `).join("");
+
+  mount.querySelectorAll("[data-remove-alert]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const context = getPortfolioContext();
+      try {
+        await api.removeAlert(context.id, button.dataset.removeAlert);
+        toast(`Alert removed.`);
+        await loadAlerts();
+      } catch (error) {
+        showModal("Remove failed", error.message, "error");
+      }
+    });
+  });
+}
+
+async function loadAlerts() {
+  const context = getPortfolioContext();
+  if (!context.id) return;
+  try {
+    state.alerts = await api.getAlerts(context.id);
+    renderAlerts();
+  } catch (err) {
+    console.warn("Failed to load alerts", err);
+  }
 }
 
 async function renderNews() {
@@ -80,6 +154,7 @@ async function loadWatchlist() {
   state.watchlist = await api.getWatchlist(context.id);
   renderWatchlist();
   await renderNews();
+  await loadAlertFocus();
 }
 
 async function init() {
@@ -89,6 +164,7 @@ async function init() {
     state.universe = buildUniverse(state.assets);
     populateSelect("STOCK");
     await loadWatchlist();
+    await loadAlerts();
   } catch (error) {
     setHTML("watchlistStatus", `<div class="status-banner">Unable to initialize watchlist page: ${error.message}</div>`);
   }
@@ -109,6 +185,28 @@ document.getElementById("watchlistForm")?.addEventListener("submit", async (even
     await loadWatchlist();
   } catch (error) {
     showModal("Add failed", error.message, "error");
+  }
+});
+
+document.getElementById("alertForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const context = getPortfolioContext();
+  if (!context.id) {
+    showModal("Portfolio required", "Create or resume a portfolio before setting alerts.", "error");
+    return;
+  }
+  const ticker = document.getElementById("alertTicker").value;
+  const type = document.getElementById("alertType").value;
+  const target = parseFloat(document.getElementById("alertTarget").value);
+  if (isNaN(target) || target <= 0) return;
+  
+  try {
+    await api.addAlert(context.id, { tickerSymbol: ticker, alertType: type, targetPrice: target });
+    toast(`Alert set for ${ticker}.`);
+    document.getElementById("alertForm").reset();
+    await loadAlerts();
+  } catch (error) {
+    showModal("Alert failed", error.message, "error");
   }
 });
 

@@ -14,6 +14,7 @@
         <div class="brand-copy"><h1>NoVibe</h1><p>Order Execution</p></div>
       </div>
       <nav class="nav-stack">
+        <a class="nav-link" href="/"><span>Home</span><span>00</span></a>
         <a class="nav-link" href="/dashboard.html"><span>Dashboard</span><span>01</span></a>
         <a class="nav-link active" href="/trade.html"><span>Trade</span><span>02</span></a>
         <a class="nav-link" href="/compare.html"><span>Compare</span><span>03</span></a>
@@ -63,17 +64,30 @@
                 </div>
                 <div class="form-field">
                   <label class="label" for="tradeTicker">Ticker</label>
-                  <select class="select" id="tradeTicker"></select>
+                  <input class="input" list="tradeTickerList" id="tradeTicker" placeholder="Search symbol..." autocomplete="off">
+                  <datalist id="tradeTickerList"></datalist>
                 </div>
                 <div class="form-field">
                   <label class="label" for="tradeQuantity">Quantity</label>
                   <input class="input" id="tradeQuantity" type="number" min="0.0001" step="0.0001" placeholder="10">
                 </div>
               </div>
-              <div class="grid three">
+              <div class="grid four" id="tradeExecutionMetrics">
                 <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Live Execution Price</span><div id="liveExecutionPrice" class="kpi-value">--</div></div></div>
                 <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Estimated Notional</span><div id="estimatedNotional" class="kpi-value">--</div></div></div>
                 <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Current Holding</span><div id="currentHolding" class="kpi-value">0</div></div></div>
+                <div class="panel interactive"><div class="panel-body">
+                  <span class="kpi-label" style="display: flex; justify-content: space-between; align-items: center;">
+                    SMA Baseline
+                    <select id="smaDays" class="select" style="width: auto; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; border: none; background: rgba(255,255,255,0.05); cursor: pointer;">
+                      <option value="20">20-Day</option>
+                      <option value="50" selected>50-Day</option>
+                      <option value="100">100-Day</option>
+                      <option value="200">200-Day</option>
+                    </select>
+                  </span>
+                  <div id="smaValue" class="kpi-value">--</div>
+                </div></div>
               </div>
               <div class="button-row">
                 <button id="refreshQuote" class="button-secondary" type="button">Refresh Live Quote</button>

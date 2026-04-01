@@ -14,6 +14,7 @@
         <div class="brand-copy"><h1>NoVibe</h1><p>Watchlist Desk</p></div>
       </div>
       <nav class="nav-stack">
+        <a class="nav-link" href="/"><span>Home</span><span>00</span></a>
         <a class="nav-link" href="/dashboard.html"><span>Dashboard</span><span>01</span></a>
         <a class="nav-link" href="/trade.html"><span>Trade</span><span>02</span></a>
         <a class="nav-link" href="/compare.html"><span>Compare</span><span>03</span></a>
@@ -54,16 +55,47 @@
                     <option value="CRYPTO">Crypto</option>
                   </select>
                 </div>
-                <div class="form-field">
-                  <label class="label" for="watchlistTicker">Ticker</label>
-                  <select class="select" id="watchlistTicker"></select>
-                </div>
+                  <div class="form-field full">
+                    <label class="label" for="watchlistTicker">Search Ticker</label>
+                    <input class="input" list="watchlistTickerList" id="watchlistTicker" placeholder="Type a symbol..." autocomplete="off">
+                    <datalist id="watchlistTickerList"></datalist>
+                  </div>
               </div>
               <div class="button-row">
                 <button class="button" type="submit">Add Symbol</button>
               </div>
             </form>
             <div id="watchlistSymbols" class="list" style="margin-top:16px;"></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Price Alerts</h3><p>Set a TAKE_PROFIT or STOP_LOSS target. The background AI engine will alert you when active.</p></div></div>
+            <form id="alertForm" class="grid">
+              <div class="form-grid">
+                  <div class="form-field">
+                    <label class="label" for="alertTicker">Asset</label>
+                    <input class="input" list="alertTickerList" id="alertTicker" placeholder="Watchlist or Holding..." autocomplete="off">
+                    <datalist id="alertTickerList"></datalist>
+                  </div>
+                <div class="form-field">
+                  <label class="label" for="alertType">Condition</label>
+                  <select class="select" id="alertType">
+                    <option value="TAKE_PROFIT">Take Profit (>=)</option>
+                    <option value="STOP_LOSS">Stop Loss (<=)</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label class="label" for="alertTarget">Target Price ($)</label>
+                  <input class="input" type="number" step="0.01" min="0" id="alertTarget" placeholder="e.g. 150.50" required>
+                </div>
+              </div>
+              <div class="button-row">
+                <button class="button" type="submit">Set Alert</button>
+              </div>
+            </form>
+            <div id="alertList" class="list" style="margin-top:16px;"></div>
           </div>
         </article>
 

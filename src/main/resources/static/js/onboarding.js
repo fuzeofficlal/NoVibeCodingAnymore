@@ -46,8 +46,29 @@ function init() {
     setText("resumePortfolioName", existing.name || "Saved portfolio");
   }
 
-  document.getElementById("resumeButton")?.addEventListener("click", () => {
-    window.location.href = existing.id ? "/dashboard.html" : "/trade.html";
+  api.getPortfolios().then(list => {
+    const select = document.getElementById("loadPortfolio");
+    if (!select) return;
+    if (list && list.length > 0) {
+      select.innerHTML = list.map(p => `<option value="${p.portfolioId}" data-name="${p.name}">${p.name} ($${Number(p.cashBalance).toFixed(2)})</option>`).join("");
+      if (existing.id && list.some(p => p.portfolioId === existing.id)) {
+        select.value = existing.id;
+      }
+    } else {
+      select.innerHTML = '<option value="">No portfolios found</option>';
+    }
+  }).catch(() => {
+    const select = document.getElementById("loadPortfolio");
+    if (select) select.innerHTML = '<option value="">Error loading</option>';
+  });
+
+  document.getElementById("resumeSelectedBtn")?.addEventListener("click", () => {
+    const select = document.getElementById("loadPortfolio");
+    if (!select.value) return;
+    const option = select.options[select.selectedIndex];
+    savePortfolioContext(option.value, option.dataset.name);
+    toast("Switched portfolio.");
+    window.location.href = "/dashboard.html";
   });
 
   document.getElementById("openAccountForm")?.addEventListener("submit", async (event) => {

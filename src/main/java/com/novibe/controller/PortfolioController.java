@@ -33,6 +33,18 @@ public class PortfolioController {
         return new ResponseEntity<>(newPortfolioInfo, org.springframework.http.HttpStatus.CREATED);
     }
 
+    @GetMapping
+    public ResponseEntity<List<PortfolioInfoDTO>> getAllPortfolios() {
+        List<PortfolioInfoDTO> list = portfolioRepository.findAll().stream()
+                .map(p -> PortfolioInfoDTO.builder()
+                        .portfolioId(p.getPortfolioId())
+                        .name(p.getName())
+                        .cashBalance(p.getCashBalance())
+                        .build())
+                .toList();
+        return ResponseEntity.ok(list);
+    }
+
     @GetMapping("/{portfolioId}")
     public ResponseEntity<PortfolioInfoDTO> getPortfolioInfo(@PathVariable String portfolioId) {
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
