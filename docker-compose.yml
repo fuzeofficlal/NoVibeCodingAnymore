@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  novibe-mysql:
+    image: mysql:8.0
+    container_name: novibe-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: Azhe114514
+      MYSQL_DATABASE: newport_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./DataBaseCreate.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  novibe-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: novibe-core
+    environment:
+      - DB_HOST=novibe-mysql
+      - TZ=UTC
+    ports:
+      - "8080:8080"
+    depends_on:
+      novibe-mysql:
+        condition: service_healthy
+
+  novibe-advisor:
+    build:
+      context: ./advisor-service
+      dockerfile: Dockerfile
+    container_name: novibe-advisor
+    environment:
+      - CORE_URL=http://novibe-core:8080
+      - GATEWAY_URL=http://novibe-gateway:8090
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - novibe-core
+
+  novibe-python:
+    build:
+      context: ./market-service
+      dockerfile: Dockerfile
+    container_name: novibe-python
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:Azhe114514@novibe-mysql:3306/newport_db?charset=utf8mb4
+    ports:
+      - "8000:8000"
+    depends_on:
+      novibe-mysql:
+        condition: service_healthy
+
+  novibe-gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: novibe-gateway
+    environment:
+      - JAVA_CORE_URL=http://novibe-core:8080
+      - JAVA_ADVISOR_URL=http://novibe-advisor:8081
+      - PYTHON_MARKET_URL=http://novibe-python:8000
+    ports:
+      - "8090:8090"
+    depends_on:
+      - novibe-core
+      - novibe-advisor
+      - novibe-python

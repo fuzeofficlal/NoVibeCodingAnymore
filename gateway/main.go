@@ -5,15 +5,20 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"portfolio-gateway/middleware"
 )
 
-const (
-	gatewayPort = ":8090"
-	backendURL  = "http://localhost:8080"
-)
+const gatewayPort = ":8090"
+
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
+}
 
 func main() {
 	r := gin.Default()
@@ -22,6 +27,7 @@ func main() {
 	r.Use(middleware.CORS())
 	r.Use(middleware.RateLimit())
 
+	backendURL := getEnv("JAVA_CORE_URL", "http://localhost:8080")
 	target, _ := url.Parse(backendURL)
 	rp := httputil.NewSingleHostReverseProxy(target)
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
@@ -31,7 +37,8 @@ func main() {
 	}
 
 	// Python    Reverse Proxy
-	marketTarget, _ := url.Parse("http://localhost:8000")
+	marketURL := getEnv("PYTHON_MARKET_URL", "http://localhost:8000")
+	marketTarget, _ := url.Parse(marketURL)
 	marketRP := httputil.NewSingleHostReverseProxy(marketTarget)
 	marketRP.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		w.Header().Set("Content-Type", "application/json")
@@ -40,7 +47,8 @@ func main() {
 	}
 
 	// AI Advisor Reverse Proxy
-	advisorTarget, _ := url.Parse("http://localhost:8081")
+	advisorURL := getEnv("JAVA_ADVISOR_URL", "http://localhost:8081")
+	advisorTarget, _ := url.Parse(advisorURL)
 	advisorRP := httputil.NewSingleHostReverseProxy(advisorTarget)
 	advisorRP.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		w.Header().Set("Content-Type", "application/json")
