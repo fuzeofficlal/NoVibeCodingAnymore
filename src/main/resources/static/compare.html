@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoVibe Terminal | Compare</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">NV</div>
+        <div class="brand-copy"><h1>NoVibe</h1><p>Relative Performance Lab</p></div>
+      </div>
+      <nav class="nav-stack">
+        <a class="nav-link" href="/dashboard.html"><span>Dashboard</span><span>01</span></a>
+        <a class="nav-link" href="/trade.html"><span>Trade</span><span>02</span></a>
+        <a class="nav-link active" href="/compare.html"><span>Compare</span><span>03</span></a>
+        <a class="nav-link" href="/watchlist.html"><span>Watchlist</span><span>04</span></a>
+        <a class="nav-link" href="/ai.html"><span>AI Desk</span><span>05</span></a>
+      </nav>
+      <div class="nav-meta">Overlay two assets with day, week, month, and year historical views.</div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Comparative Analytics</div>
+          <h2>Cross Asset Compare</h2>
+          <p>Overlay two tickers and inspect their historical price behavior on shared axes.</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="pill">Window <strong id="compareRangeLabel">30 day window</strong></div>
+          <a class="robot-link" href="/ai.html" aria-label="Open AI page">
+            <div class="robot-face"><span class="robot-antenna"></span></div>
+          </a>
+        </div>
+      </div>
+
+      <div id="compareStatus"></div>
+
+      <section class="panel">
+        <div class="panel-body">
+          <div class="section-heading"><div><h3>Comparison Controls</h3><p>Select two different assets from the same class and choose a time horizon.</p></div></div>
+          <form id="compareForm" class="grid">
+            <div class="form-grid">
+              <div class="form-field">
+                <label class="label" for="compareType">Asset Type</label>
+                <select class="select" id="compareType">
+                  <option value="STOCK">Stock</option>
+                  <option value="BOND">Bond</option>
+                  <option value="CRYPTO">Crypto</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="label" for="compareA">Asset A</label>
+                <select class="select" id="compareA"></select>
+              </div>
+              <div class="form-field">
+                <label class="label" for="compareB">Asset B</label>
+                <select class="select" id="compareB"></select>
+              </div>
+            </div>
+            <div class="range-group">
+              <button class="range-button" type="button" data-range="DAY">Day</button>
+              <button class="range-button" type="button" data-range="WEEK">Week</button>
+              <button class="range-button active" type="button" data-range="MONTH">Month</button>
+              <button class="range-button" type="button" data-range="YEAR">Year</button>
+            </div>
+            <div class="button-row"><button class="button" type="submit">Compare Assets</button></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="split-layout" style="margin-top:18px;">
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Relative Trend Chart</h3><p>X-axis shows time. Y-axis shows price. Hover for exact values.</p></div></div>
+            <div class="chart-shell">
+              <canvas id="compareChart" class="chart-canvas"></canvas>
+            </div>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Latest Reads</h3><p>Side-by-side current levels for the selected range.</p></div></div>
+            <div class="grid two">
+              <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Asset A</span><div id="compareLatestA" class="kpi-value">--</div></div></div>
+              <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Asset B</span><div id="compareLatestB" class="kpi-value">--</div></div></div>
+            </div>
+            <div class="empty-state" style="margin-top:18px;">Use this screen for pair analysis, sector rotation checks, and BTC versus risk asset studies.</div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastStack" class="toast-stack"></div>
+  <div id="appModal" class="modal-backdrop">
+    <div class="modal">
+      <h3 data-modal-title>Notice</h3>
+      <p data-modal-body></p>
+      <div class="button-row"><button class="button-secondary" type="button" data-close-modal>Close</button></div>
+    </div>
+  </div>
+  <script type="module" src="/js/compare.js"></script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoVibe Terminal | Dashboard</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">NV</div>
+        <div class="brand-copy"><h1>NoVibe</h1><p>Trading Terminal</p></div>
+      </div>
+      <nav class="nav-stack">
+        <a class="nav-link active" href="/dashboard.html"><span>Dashboard</span><span>01</span></a>
+        <a class="nav-link" href="/trade.html"><span>Trade</span><span>02</span></a>
+        <a class="nav-link" href="/compare.html"><span>Compare</span><span>03</span></a>
+        <a class="nav-link" href="/watchlist.html"><span>Watchlist</span><span>04</span></a>
+        <a class="nav-link" href="/ai.html"><span>AI Desk</span><span>05</span></a>
+      </nav>
+      <div class="nav-meta">
+        Core flow uses your existing backend only.
+        Live prices stream from the market service through the gateway.
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Portfolio Command Center</div>
+          <h2 id="portfolioName">Portfolio</h2>
+          <p>Live market board, portfolio valuation, holdings, allocation, and transaction tape.</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="pill">Portfolio ID <strong id="portfolioIdPill">--</strong></div>
+          <a class="robot-link" href="/ai.html" aria-label="Open AI page">
+            <div class="robot-face"><span class="robot-antenna"></span></div>
+          </a>
+        </div>
+      </div>
+
+      <div id="dashboardError"></div>
+
+      <section class="grid four">
+        <article class="panel kpi-card interactive">
+          <span class="kpi-label">Cash Balance</span>
+          <div id="cashBalance" class="kpi-value">$0.00</div>
+          <div class="kpi-sub">Available for orders and withdrawals</div>
+        </article>
+        <article class="panel kpi-card interactive">
+          <span class="kpi-label">Total Portfolio Value</span>
+          <div id="totalValue" class="kpi-value">$0.00</div>
+          <div class="kpi-sub">Net asset value across cash and positions</div>
+        </article>
+        <article class="panel kpi-card interactive">
+          <span class="kpi-label">Total Return</span>
+          <div id="totalReturn" class="kpi-value positive">+0.00%</div>
+          <div class="kpi-sub">Green up, red down for U.S. markets</div>
+        </article>
+        <article class="panel kpi-card interactive">
+          <span class="kpi-label">Live Feed</span>
+          <div id="marketTimestamp" class="kpi-value">Snapshot</div>
+          <div class="kpi-sub">Streaming from `/api/v1/market/ws`</div>
+        </article>
+      </section>
+
+      <section class="panel" style="margin-top:18px;">
+        <div class="panel-body">
+          <div class="section-heading">
+            <div><h3>Live Multi-Asset Board</h3><p>A tighter terminal strip with a small set of benchmark names across stocks, bonds, and crypto.</p></div>
+          </div>
+          <div class="compact-board-head">
+            <span class="asset-tag">Stocks</span>
+            <span class="asset-tag">Bonds</span>
+            <span class="asset-tag">Crypto</span>
+          </div>
+          <div id="marketCompactBoard" class="market-compact-grid"></div>
+          <div class="kpi-sub" style="margin-top:14px;">AAPL / NVDA, TLT / BND, BTC / ETH are shown as the compact live tape.</div>
+          <div id="marketCompactMeta" class="muted" style="margin-top:6px;">Benchmark strip</div>
+          <div style="display:none;">
+            <div id="stocksBoard"></div>
+            <div id="bondsBoard"></div>
+            <div id="cryptoBoard"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="split-layout" style="margin-top:18px;">
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Performance Curve</h3><p>Historical portfolio value over the last month.</p></div></div>
+            <div class="chart-shell">
+              <canvas id="performanceChart" class="chart-canvas"></canvas>
+            </div>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Allocation Mix</h3><p>Visual composition of current asset exposure.</p></div></div>
+            <div id="allocation"></div>
+            <div id="allocationStats" class="allocation-kpis" style="margin-top:16px;"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid two" style="margin-top:18px;">
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Holdings</h3><p>Current positions and unrealized PnL.</p></div></div>
+            <table class="terminal-table">
+              <thead>
+                <tr><th>Asset</th><th>Qty</th><th>Live Price</th><th>Cost Basis</th><th>Market Value</th><th>PnL</th></tr>
+              </thead>
+              <tbody id="holdingsTable"></tbody>
+            </table>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Transaction Tape</h3><p>Recent account activity from the backend ledger.</p></div></div>
+            <table class="terminal-table">
+              <thead>
+                <tr><th>Type</th><th>Ticker</th><th>Qty</th><th>Price</th><th>Time</th></tr>
+              </thead>
+              <tbody id="transactionsTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastStack" class="toast-stack"></div>
+  <div id="appModal" class="modal-backdrop">
+    <div class="modal">
+      <h3 data-modal-title>Notice</h3>
+      <p data-modal-body></p>
+      <div class="button-row"><button class="button-secondary" type="button" data-close-modal>Close</button></div>
+    </div>
+  </div>
+  <script type="module" src="/js/dashboard.js"></script>
+</body>
+</html>

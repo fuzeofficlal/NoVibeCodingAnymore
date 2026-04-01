@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoVibe Terminal | Home</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">NV</div>
+        <div class="brand-copy"><h1>NoVibe</h1><p>Terminal Home</p></div>
+      </div>
+      <nav class="nav-stack">
+        <a class="nav-link active" href="/"><span>Home</span><span>00</span></a>
+        <a class="nav-link" href="/dashboard.html"><span>Dashboard</span><span>01</span></a>
+        <a class="nav-link" href="/trade.html"><span>Trade</span><span>02</span></a>
+        <a class="nav-link" href="/compare.html"><span>Compare</span><span>03</span></a>
+        <a class="nav-link" href="/watchlist.html"><span>Watchlist</span><span>04</span></a>
+        <a class="nav-link" href="/ai.html"><span>AI Desk</span><span>05</span></a>
+      </nav>
+      <div class="nav-meta">
+        No login wall. This landing page is part of the trading workspace and lets the user create or resume a portfolio directly.
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Trading Workspace Entry</div>
+          <h2>NoVibe Market Terminal</h2>
+          <p>Direct terminal home with live market color, capital setup, and fast access to the multi-page workflow.</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="pill">Mode <strong>Live Workspace</strong></div>
+          <a class="robot-link" href="/ai.html" aria-label="Open AI page">
+            <div class="robot-face"><span class="robot-antenna"></span></div>
+          </a>
+        </div>
+      </div>
+
+      <section class="grid three">
+        <article class="panel kpi-card interactive">
+          <span class="kpi-label">Workspace</span>
+          <div class="kpi-value">Multi-Page</div>
+          <div class="kpi-sub">Dashboard, Trade, Compare, AI Desk</div>
+        </article>
+        <article class="panel kpi-card interactive">
+          <span class="kpi-label">Funding Rule</span>
+          <div class="kpi-value">Required</div>
+          <div class="kpi-sub">Initial deposit must be greater than 0</div>
+        </article>
+        <article class="panel kpi-card interactive">
+          <span class="kpi-label">Session</span>
+          <div id="resumePortfolioName" class="kpi-value">No Portfolio</div>
+          <div class="kpi-sub">Saved portfolio ID: <span id="resumePortfolioId">--</span></div>
+        </article>
+      </section>
+
+      <section class="split-layout" style="margin-top:18px;">
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading">
+              <div>
+                <h3>Launch Portfolio</h3>
+                <p>Open a new portfolio without a login-style screen. This is the same backend flow, presented as part of the desk.</p>
+              </div>
+            </div>
+            <form id="openAccountForm" class="grid">
+              <div class="form-grid">
+                <div class="form-field">
+                  <label class="label" for="portfolioName">Portfolio Name</label>
+                  <input class="input" id="portfolioName" placeholder="Global Macro Core">
+                </div>
+                <div class="form-field">
+                  <label class="label" for="initialDeposit">Initial Deposit</label>
+                  <input class="input" id="initialDeposit" type="number" min="0.01" step="0.01" placeholder="50000">
+                </div>
+              </div>
+              <div class="button-row">
+                <button class="button" type="submit">Create Portfolio</button>
+                <a class="button-secondary" href="/dashboard.html">Open Dashboard</a>
+                <button id="resumeButton" class="button-secondary" type="button">Resume Saved Portfolio</button>
+              </div>
+            </form>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading">
+              <div>
+                <h3>Live Market Pulse</h3>
+                <p>Terminal-style live board preview for stocks, bonds, and crypto.</p>
+              </div>
+            </div>
+            <div id="homeMarketBoard" class="market-grid"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid three" style="margin-top:18px;">
+        <article class="panel interactive">
+          <div class="panel-body">
+            <span class="kpi-label">Dashboard</span>
+            <div class="kpi-sub">Portfolio value, allocation, holdings, transaction tape, and live market board.</div>
+          </div>
+        </article>
+        <article class="panel interactive">
+          <div class="panel-body">
+            <span class="kpi-label">Trade</span>
+            <div class="kpi-sub">Auto-priced buy and sell execution with balance checks and success or failure modals.</div>
+          </div>
+        </article>
+        <article class="panel interactive">
+          <div class="panel-body">
+            <span class="kpi-label">Watchlist + News</span>
+            <div class="kpi-sub">Track stocks, bonds, and crypto in a dedicated watchlist page with Yahoo Finance news feed wiring.</div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastStack" class="toast-stack"></div>
+  <div id="appModal" class="modal-backdrop">
+    <div class="modal">
+      <h3 data-modal-title>Notice</h3>
+      <p data-modal-body></p>
+      <div class="button-row">
+        <button class="button-secondary" type="button" data-close-modal>Close</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/js/onboarding.js"></script>
+</body>
+</html>
