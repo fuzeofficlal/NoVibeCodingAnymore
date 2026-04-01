@@ -412,3 +412,23 @@ export function buildUniverse(assetList = []) {
   });
   return byType;
 }
+
+function listenForAiAlerts() {
+  const eventSource = new window.EventSource("/api/v1/advisor/stream");
+  eventSource.addEventListener("alert", (event) => {
+    try {
+      const message = decodeURIComponent(escape(atob(event.data)));
+      showModal("\uD83D\uDEA8 AI Copilot Alert", message, "error");
+    } catch (e) {
+      console.error("Failed to decode AI alert", e);
+    }
+  });
+  eventSource.onerror = () => {
+    eventSource.close();
+    setTimeout(listenForAiAlerts, 10000); // Retry after 10 seconds
+  };
+}
+
+if (window.EventSource) {
+  setTimeout(listenForAiAlerts, 1000);
+}

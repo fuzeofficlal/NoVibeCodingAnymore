@@ -22,6 +22,17 @@ public class AdvisorService {
     //  Memory Engine ---
     private final org.springframework.ai.chat.memory.ChatMemory chatMemory = new org.springframework.ai.chat.memory.InMemoryChatMemory();
 
+    private final java.util.concurrent.CopyOnWriteArrayList<org.springframework.web.servlet.mvc.method.annotation.SseEmitter> emitters = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter subscribeToAlerts() {
+        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(86400000L); // 24 hours
+        this.emitters.add(emitter);
+        emitter.onCompletion(() -> this.emitters.remove(emitter));
+        emitter.onTimeout(() -> this.emitters.remove(emitter));
+        emitter.onError(e -> this.emitters.remove(emitter));
+        return emitter;
+    }
+
     public AdvisorService(RestClient restClient,
             @org.springframework.beans.factory.annotation.Value("${spring.ai.openai.base-url}") String defaultBaseUrl,
             @org.springframework.beans.factory.annotation.Value("${spring.ai.openai.chat.options.model:gemini-3-pro-preview}") String defaultModel,
@@ -186,6 +197,15 @@ public class AdvisorService {
         System.out.println("================================================================");
         System.out.println(urgentMessage);
         System.out.println("================================================================\n");
+        
+        for (org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter : emitters) {
+            try {
+                String encoded = java.util.Base64.getEncoder().encodeToString(urgentMessage.getBytes("UTF-8"));
+                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("alert").data(encoded));
+            } catch (Exception e) {
+                emitters.remove(emitter);
+            }
+        }
         
         return urgentMessage;
     }

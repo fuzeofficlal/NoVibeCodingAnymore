@@ -46,4 +46,9 @@ public class AdvisorController {
         String response = advisorService.generateProactiveAlert(portfolioId, request.ticker(), request.price(), request.type(), request.target());
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/stream")
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamAlerts() {
+        return advisorService.subscribeToAlerts();
+    }
 }
