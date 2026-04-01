@@ -62,7 +62,13 @@ func main() {
 		
 		//  /market,  ppython
 
-		if len(proxyPath) >= 7 && proxyPath[:7] == "/market" {
+		if proxyPath == "/market-docs" {
+			c.Request.URL.Path = "/openapi.json"
+			marketRP.ServeHTTP(c.Writer, c.Request)
+		} else if proxyPath == "/advisor-docs" {
+			c.Request.URL.Path = "/v3/api-docs"
+			advisorRP.ServeHTTP(c.Writer, c.Request)
+		} else if len(proxyPath) >= 7 && proxyPath[:7] == "/market" {
 			c.Request.URL.Path = "/api/v1" + proxyPath
 			marketRP.ServeHTTP(c.Writer, c.Request)
 		} else if len(proxyPath) >= 8 && proxyPath[:8] == "/advisor" {
