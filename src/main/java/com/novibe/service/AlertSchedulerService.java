@@ -57,12 +57,20 @@ public class AlertSchedulerService {
                                 "{\"ticker\": \"%s\", \"price\": %s, \"type\": \"%s\", \"target\": %s}",
                                 ticker, marketPrice.getCurrentPrice(), alert.getAlertType(), alert.getTargetPrice());
 
-                        restClient.post()
-                                .uri(advisorServiceUrl + "/api/v1/advisor/{id}/proactive-alert", alert.getPortfolioId())
-                                .header("Content-Type", "application/json")
-                                .body(payload)
-                                .retrieve()
-                                .toBodilessEntity();
+                        String url = advisorServiceUrl + "/api/v1/advisor/{id}/proactive-alert";
+                        String pid = alert.getPortfolioId();
+                        java.util.concurrent.CompletableFuture.runAsync(() -> {
+                            try {
+                                restClient.post()
+                                        .uri(url, pid)
+                                        .header("Content-Type", "application/json")
+                                        .body(payload)
+                                        .retrieve()
+                                        .toBodilessEntity();
+                            } catch (Exception ex) {
+                                log.error("Async AI trigger failed: ", ex);
+                            }
+                        });
 
                         priceAlertRepository.delete(alert);
                     } catch (Exception e) {

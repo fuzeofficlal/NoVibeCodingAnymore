@@ -7,11 +7,11 @@ export const WS_URL = `${wsProtocol}//${host}:8090/api/v1/market/ws`;
 
 async function request(path, options = {}, base = API_BASE) {
   const response = await fetch(`${base}${path}`, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {})
-    },
-    ...options
+    }
   });
 
   if (!response.ok) {
@@ -27,7 +27,11 @@ async function request(path, options = {}, base = API_BASE) {
   }
 
   if (response.status === 204) return null;
-  return response.json();
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+  return response.text();
 }
 
 async function getLatestAssetPrice(ticker) {

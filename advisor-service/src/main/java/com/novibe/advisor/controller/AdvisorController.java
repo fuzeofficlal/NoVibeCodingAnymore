@@ -47,7 +47,7 @@ public class AdvisorController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/stream")
+    @GetMapping(value = "/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
     public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamAlerts() {
         return advisorService.subscribeToAlerts();
     }

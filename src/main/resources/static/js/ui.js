@@ -98,7 +98,22 @@ export function showModal(title, body, tone = "success") {
   const bodyNode = backdrop.querySelector("[data-modal-body]");
   const panel = backdrop.querySelector(".modal");
   titleNode.textContent = title;
-  bodyNode.textContent = body;
+  
+  if (tone === "error") {
+    let html = body
+      .replace(/</g, "&lt;").replace(/>/g, "&gt;") // sanitize HTML tags
+      .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #ff5a5f;">$1</strong>') // Bold text with red emphasis
+      .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic
+      .replace(/={10,}/g, '<hr style="border:0; border-top:1px dashed rgba(255,90,95,0.4); margin: 12px 0;">') // Separators
+      .replace(/^\*\s+(.*)$/gm, '<div style="margin-left: 12px;"><span style="color:#ff5a5f; margin-right: 6px;">•</span>$1</div>') // Bullets
+      .replace(/\n\n/g, '<br><br>') // Paragraphs
+      .replace(/\n(?!\<)/g, '<br>') // Single line breaks (not preceded by our html tags like <br> or <div>)
+      .replace(/🚨/g, '<span style="font-size: 1.25em">🚨</span>');
+    bodyNode.innerHTML = html;
+  } else {
+    bodyNode.textContent = body;
+  }
+  
   panel.style.borderColor = tone === "error" ? "rgba(255, 90, 95, 0.28)" : "rgba(40, 209, 124, 0.28)";
   backdrop.classList.add("visible");
 }
@@ -414,7 +429,10 @@ export function buildUniverse(assetList = []) {
 }
 
 function listenForAiAlerts() {
-  const eventSource = new window.EventSource("/api/v1/advisor/stream");
+  const host = window.location.hostname || "localhost";
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  const eventSource = new window.EventSource(`${protocol}//${host}:8090/api/v1/advisor/stream`);
+  
   eventSource.addEventListener("alert", (event) => {
     try {
       const message = decodeURIComponent(escape(atob(event.data)));
