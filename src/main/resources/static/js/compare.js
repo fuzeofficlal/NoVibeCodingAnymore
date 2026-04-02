@@ -12,7 +12,7 @@ import {
 
 const state = {
   assets: [],
-  universe: { STOCK: [], BOND: [], CRYPTO: [] },
+  universe: { STOCK: [], BOND: [], CRYPTO: [], ASHARE: [] },
   range: "MONTH"
 };
 

@@ -1,5 +1,5 @@
 import { api, openMarketSocket } from "./api.js";
-import { bindModal, buildUniverse, drawLineChart, formatMoney, formatPercent, formatQuantity, fullDate, getPortfolioContext, renderAllocation, renderAllocationBreakdown, renderMarketCards, setHTML, setText, toast } from "./ui.js";
+import { bindModal, buildUniverse, curatedUniverse, drawLineChart, formatMoney, formatPercent, formatQuantity, fullDate, getPortfolioContext, renderAllocation, renderAllocationBreakdown, renderMarketCards, setHTML, setText, toast } from "./ui.js";
 
 const state = {
   previousPrices: {},
@@ -66,18 +66,20 @@ function renderPerformance(performance) {
   }]);
 }
 
-function buildMarketPayload(prices, universe) {
+function buildMarketPayload(prices, tickersContext) {
   const metadata = state.metadata;
-  return Object.entries(universe).flatMap(([type, tickers]) =>
-    tickers.slice(0, 6).map((ticker) => ({
+  return tickersContext.map((ticker) => {
+    const assetMeta = metadata.get(ticker) || {};
+    const type = assetMeta.type || (ticker.includes("-USD") ? "CRYPTO" : (ticker.includes(".SS") || ticker.includes(".SZ") ? "ASHARE" : "STOCK"));
+    return {
       ticker,
       type,
       currentPrice: Number(prices[ticker]?.currentPrice || 0),
       previousPrice: Number(prices[ticker]?.previousPrice || 0),
       sparkline: prices[ticker]?.sparkline || [],
-      name: metadata.get(ticker)?.name || metadata.get(ticker)?.companyName || ticker
-    }))
-  );
+      name: assetMeta.name || assetMeta.companyName || ticker
+    };
+  });
 }
 
 async function buildInitialSnapshots(tickers) {
@@ -95,12 +97,7 @@ async function buildInitialSnapshots(tickers) {
 }
 
 function splitMarketCards(payload) {
-  const compact = [
-    ...payload.filter((item) => item.type === "STOCK").slice(0, 2),
-    ...payload.filter((item) => item.type === "BOND").slice(0, 2),
-    ...payload.filter((item) => item.type === "CRYPTO").slice(0, 2)
-  ];
-  renderMarketCards(document.getElementById("marketCompactBoard"), compact, state.previousPrices);
+  renderMarketCards(document.getElementById("marketCompactBoard"), payload.slice(0, 8), state.previousPrices);
 }
 
 async function loadDashboard() {
@@ -112,9 +109,32 @@ async function loadDashboard() {
     assets.forEach((asset) => state.metadata.set(asset.symbol, asset));
 
     const universe = buildUniverse(assets);
-    const featuredTickers = [...universe.STOCK.slice(0, 2), ...universe.BOND.slice(0, 2), ...universe.CRYPTO.slice(0, 2)];
+    
+    let featuredTickers = [];
+    if (portfolio.id) {
+      try {
+        const [holdings, watchlist] = await Promise.all([
+          api.getHoldings(portfolio.id),
+          api.getWatchlist(portfolio.id)
+        ]);
+        const holdingTickers = holdings.map(h => h.symbol);
+        const watchlistTickers = watchlist.map(w => w.tickerSymbol);
+        featuredTickers = Array.from(new Set([...holdingTickers, ...watchlistTickers]));
+      } catch (err) { }
+    }
+
+    if (featuredTickers.length === 0) {
+      featuredTickers = [
+        ...curatedUniverse.STOCK.slice(0, 2), 
+        ...curatedUniverse.ASHARE.slice(0, 2), 
+        ...curatedUniverse.BOND.slice(0, 2), 
+        ...curatedUniverse.CRYPTO.slice(0, 2)
+      ];
+    } else {
+      featuredTickers = featuredTickers.slice(0, 8);
+    }
     const priceMap = await buildInitialSnapshots(featuredTickers);
-    const payload = buildMarketPayload(priceMap, universe);
+    const payload = buildMarketPayload(priceMap, featuredTickers);
     splitMarketCards(payload);
     Object.assign(state.previousPrices, Object.fromEntries(Object.entries(priceMap).map(([ticker, value]) => [ticker, value.currentPrice])));
 
@@ -136,7 +156,7 @@ async function loadDashboard() {
           previousPrice: Number(state.previousPrices[ticker] || value),
           sparkline: []
         }]));
-        splitMarketCards(buildMarketPayload({ ...priceMap, ...next }, universe));
+        splitMarketCards(buildMarketPayload({ ...priceMap, ...next }, featuredTickers));
         Object.assign(state.previousPrices, Object.fromEntries(Object.entries(next).map(([ticker, value]) => [ticker, value.currentPrice])));
       }, () => {});
       return;
@@ -161,7 +181,7 @@ async function loadDashboard() {
         currentPrice: Number(value),
         previousPrice: Number(state.previousPrices[ticker] || value),
         sparkline: priceMap[ticker]?.sparkline || []
-      }])), universe);
+      }])), featuredTickers);
       splitMarketCards(nextPayload);
       Object.assign(state.previousPrices, prices);
       setText("marketTimestamp", `Streaming ${new Date(packet.timestamp || Date.now()).toLocaleTimeString("en-US")}`);

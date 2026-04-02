@@ -59,8 +59,15 @@ def start_scheduler():
     
     scheduler.add_job(
         run_sync_task,
+        CronTrigger(day_of_week='mon-fri', hour=16, minute=0, timezone='Asia/Shanghai'),
+        id="catch_up_cn_eod",
+        replace_existing=True
+    )
+    
+    scheduler.add_job(
+        run_sync_task,
         CronTrigger(day_of_week='mon-fri', hour=18, minute=0, timezone='America/New_York'),
-        id="catch_up_eod",
+        id="catch_up_us_eod",
         replace_existing=True
     )
     
@@ -75,5 +82,5 @@ def start_scheduler():
     )
 
     scheduler.start()
-    print("[SCHEDULER] APScheduler started. Tracking America/New_York timezone.")
+    print("[SCHEDULER] APScheduler started. Tracking BOTH Asia/Shanghai and America/New_York schedules.")
     return scheduler

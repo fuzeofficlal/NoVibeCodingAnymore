@@ -51,6 +51,7 @@
                   <label class="label" for="watchlistType">Asset Type</label>
                   <select class="select" id="watchlistType">
                     <option value="STOCK">Stock</option>
+                    <option value="ASHARE">A-Share</option>
                     <option value="BOND">Bond</option>
                     <option value="CRYPTO">Crypto</option>
                   </select>
@@ -101,8 +102,13 @@
 
         <article class="panel">
           <div class="panel-body">
-            <div class="section-heading"><div><h3>Watchlist News</h3><p>Yahoo Finance headlines for symbols currently in the watchlist.</p></div></div>
-            <div id="watchlistNews" class="news-list"></div>
+            <div class="section-heading" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+              <div><h3>Watchlist News</h3><p>Yahoo Finance headlines for symbols currently in the watchlist.</p></div>
+              <select id="newsFilter" class="select" style="display: none; min-width: 140px;">
+                <option value="ALL">All Symbols</option>
+              </select>
+            </div>
+            <div id="watchlistNews" class="news-list" style="max-height: 500px; overflow-y: auto; padding-right: 8px;"></div>
           </div>
         </article>
       </section>

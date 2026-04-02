@@ -5,7 +5,8 @@ const apiKeyStore = "novibe.advisorApiKey";
 export const curatedUniverse = {
   STOCK: ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META"],
   BOND: ["TLT", "IEF", "SHY", "LQD", "HYG", "BND"],
-  CRYPTO: ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "ADA-USD"]
+  CRYPTO: ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "ADA-USD"],
+  ASHARE: ["600519.SS", "000001.SZ", "601398.SS", "300750.SZ"]
 };
 
 export function savePortfolioContext(id, name = "") {
@@ -238,6 +239,7 @@ function allocationColor(label) {
   const colors = {
     CASH: "#b78a56",
     STOCK: "#8798ad",
+    ASHARE: "#d94c4c",
     BOND: "#cfac7e",
     CRYPTO: "#5f6f84"
   };
@@ -418,9 +420,9 @@ export function groupAssets(assetList = []) {
 }
 
 export function buildUniverse(assetList = []) {
-  const byType = { STOCK: [], BOND: [], CRYPTO: [] };
+  const byType = { STOCK: [], BOND: [], CRYPTO: [], ASHARE: [] };
   assetList.forEach((asset) => {
-    if (byType[asset.type]) byType[asset.type].push(asset.symbol);
+    if (byType[asset.type] !== undefined) byType[asset.type].push(asset.symbol);
   });
   Object.keys(byType).forEach((type) => {
     if (!byType[type].length) byType[type] = curatedUniverse[type];

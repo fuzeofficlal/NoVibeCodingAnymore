@@ -3,9 +3,10 @@ import { bindModal, buildUniverse, getPortfolioContext, setHTML, setText, showMo
 
 const state = {
   assets: [],
-  universe: { STOCK: [], BOND: [], CRYPTO: [] },
+  universe: { STOCK: [], BOND: [], CRYPTO: [], ASHARE: [] },
   watchlist: [],
-  alerts: []
+  alerts: [],
+  newsData: null
 };
 
 function populateSelect(type) {
@@ -121,14 +122,38 @@ async function loadAlerts() {
 
 async function renderNews() {
   const mount = document.getElementById("watchlistNews");
+  const filter = document.getElementById("newsFilter");
+  
   if (!state.watchlist.length) {
     mount.innerHTML = `<div class="empty-state">Add symbols to the watchlist to load related news.</div>`;
+    if (filter) filter.style.display = "none";
     return;
   }
 
   try {
     const news = await api.getMarketNews(state.watchlist.map((item) => item.tickerSymbol));
-    const cards = Object.entries(news).flatMap(([ticker, stories]) =>
+    state.newsData = news;
+    
+    if (filter) {
+      filter.innerHTML = `<option value="ALL">All Symbols</option>` + 
+        Object.keys(news).map(ticker => `<option value="${ticker}">${ticker}</option>`).join("");
+      filter.style.display = "block";
+      filter.value = "ALL";
+    }
+
+    displayNews("ALL");
+  } catch (error) {
+    mount.innerHTML = `<div class="status-banner">Yahoo Finance news is wired in, but the local market gateway on port 8090 is currently not responding, so news fetch cannot complete right now.</div>`;
+  }
+}
+
+function displayNews(selectedTicker) {
+  const mount = document.getElementById("watchlistNews");
+  if (!state.newsData) return;
+  
+  let cards = [];
+  if (selectedTicker === "ALL") {
+    cards = Object.entries(state.newsData).flatMap(([ticker, stories]) =>
       (stories || []).map((story) => `
         <article class="news-card">
           <div class="news-meta">${ticker} • ${story.publisher || "Yahoo Finance"}</div>
@@ -136,10 +161,16 @@ async function renderNews() {
         </article>
       `)
     );
-    mount.innerHTML = cards.join("") || `<div class="empty-state">No news articles were returned for the current watchlist.</div>`;
-  } catch (error) {
-    mount.innerHTML = `<div class="status-banner">Yahoo Finance news is wired in, but the local market gateway on port 8090 is currently not responding, so news fetch cannot complete right now.</div>`;
+  } else {
+    cards = (state.newsData[selectedTicker] || []).map((story) => `
+      <article class="news-card">
+        <div class="news-meta">${selectedTicker} • ${story.publisher || "Yahoo Finance"}</div>
+        <h4><a href="${story.link}" target="_blank" rel="noreferrer">${story.title || "Untitled article"}</a></h4>
+      </article>
+    `);
   }
+  
+  mount.innerHTML = cards.join("") || `<div class="empty-state">No news articles were returned for the current selection.</div>`;
 }
 
 async function loadWatchlist() {
@@ -171,6 +202,7 @@ async function init() {
 }
 
 document.getElementById("watchlistType")?.addEventListener("change", (event) => populateSelect(event.target.value));
+document.getElementById("newsFilter")?.addEventListener("change", (event) => displayNews(event.target.value));
 document.getElementById("watchlistForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const context = getPortfolioContext();

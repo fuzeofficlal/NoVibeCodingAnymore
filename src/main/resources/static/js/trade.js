@@ -1,12 +1,12 @@
 import { api, openMarketSocket } from "./api.js";
-import { bindModal, buildUniverse, formatMoney, formatQuantity, getPortfolioContext, renderMarketCards, setHTML, setText, showModal, toast } from "./ui.js";
+import { bindModal, buildUniverse, curatedUniverse, formatMoney, formatQuantity, getPortfolioContext, renderMarketCards, setHTML, setText, showModal, toast } from "./ui.js";
 
 const state = {
   assetMap: new Map(),
   priceMap: {},
   holdingsMap: new Map(),
   cashBalance: 0,
-  universe: { STOCK: [], BOND: [], CRYPTO: [] }
+  universe: { STOCK: [], BOND: [], CRYPTO: [], ASHARE: [] }
 };
 
 function populateTickerSelect(type) {
@@ -49,7 +49,33 @@ async function loadTradePage() {
     state.universe = buildUniverse(assets);
     populateTickerSelect("STOCK");
 
-    const featured = [...state.universe.STOCK.slice(0, 3), ...state.universe.BOND.slice(0, 3), ...state.universe.CRYPTO.slice(0, 3)];
+    let featured = [];
+    if (context.id) {
+      try {
+        const [holdings, watchlist] = await Promise.all([
+          api.getHoldings(context.id),
+          api.getWatchlist(context.id)
+        ]);
+        const holdingTickers = holdings.map(h => h.symbol);
+        const watchlistTickers = watchlist.map(w => w.tickerSymbol);
+        featured = Array.from(new Set([...holdingTickers, ...watchlistTickers]));
+      } catch (err) {
+        console.warn("Could not fetch holdings/watchlist for featured market:", err);
+      }
+    }
+    
+    // Fallback exactly to the curated list if portfolio has nothing or is not selected yet
+    if (featured.length === 0) {
+      featured = [
+        ...curatedUniverse.STOCK.slice(0, 3),
+        ...curatedUniverse.BOND.slice(0, 3),
+        ...curatedUniverse.CRYPTO.slice(0, 3)
+      ];
+    } else {
+      // Limit to 9 so it fits nicely
+      featured = featured.slice(0, 9);
+    }
+
     const histories = await api.getAssetHistoryBatch(featured);
     state.priceMap = Object.fromEntries(Object.entries(histories).map(([ticker, series]) => {
       const latest = series[series.length - 1];
@@ -104,11 +130,12 @@ function updateQuotePreview() {
   setText("currentHolding", formatQuantity(state.holdingsMap.get(ticker) || 0));
 }
 
-async function syncSelectedQuote() {
+async function syncSelectedQuote(eventOrForce) {
+  const force = eventOrForce === true;
   const ticker = document.getElementById("tradeTicker").value;
   if (!ticker) return;
   try {
-    const [quote] = await api.getPrices([ticker]);
+    const [quote] = await api.getPrices([ticker], force);
     state.priceMap[ticker] = Number(quote?.current_price || 0);
     updateQuotePreview();
     
@@ -215,7 +242,7 @@ document.getElementById("tradeTicker")?.addEventListener("change", syncSelectedQ
 document.getElementById("tradeQuantity")?.addEventListener("input", updateQuotePreview);
 document.getElementById("tradeSide")?.addEventListener("change", updateQuotePreview);
 document.getElementById("smaDays")?.addEventListener("change", syncSelectedQuote);
-document.getElementById("refreshQuote")?.addEventListener("click", syncSelectedQuote);
+document.getElementById("refreshQuote")?.addEventListener("click", () => syncSelectedQuote(true));
 document.getElementById("tradeForm")?.addEventListener("submit", submitTrade);
 document.getElementById("cashFlowForm")?.addEventListener("submit", submitCashFlow);
 

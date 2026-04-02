@@ -1,4 +1,5 @@
 import { api } from "./api.js";
+import { marked } from "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js";
 import {
   bindModal,
   getAdvisorKey,
@@ -16,7 +17,8 @@ async function runInsight() {
   saveAdvisorKey(apiKey);
   try {
     const result = await api.getInsight(context.id, apiKey);
-    document.getElementById("advisorInsight").textContent = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+    const resultText = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+    document.getElementById("advisorInsight").innerHTML = marked.parse(resultText);
     toast("AI risk insight loaded.");
   } catch (error) {
     showModal("Insight failed", error.message, "error");
@@ -35,7 +37,8 @@ async function runChat(event) {
   if (apiKey) saveAdvisorKey(apiKey);
   try {
     const result = await api.chatWithAdvisor(context.id, apiKey, query);
-    document.getElementById("advisorChatResult").textContent = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+    const resultText = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+    document.getElementById("advisorChatResult").innerHTML = marked.parse(resultText);
     toast("Advisor response received.");
   } catch (error) {
     showModal("Chat failed", error.message, "error");

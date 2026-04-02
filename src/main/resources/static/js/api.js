@@ -48,9 +48,14 @@ async function getLatestAssetPrice(ticker) {
 export const api = {
   getAssets: () => request("/assets"),
   getAssetsDirect: () => request("/assets"),
-  getPrices: async (tickers = []) => {
+  getPrices: async (tickers = [], force = false) => {
     try {
-      return await request(`/market/prices${tickers.length ? `?tickers=${encodeURIComponent(tickers.join(","))}` : ""}`);
+      let endpoint = '/market/prices';
+      const query = [];
+      if (tickers.length) query.push(`tickers=${encodeURIComponent(tickers.join(","))}`);
+      if (force) query.push('force=true');
+      if (query.length) endpoint += `?${query.join("&")}`;
+      return await request(endpoint);
     } catch {
       return Promise.all(tickers.map((ticker) => getLatestAssetPrice(ticker)));
     }

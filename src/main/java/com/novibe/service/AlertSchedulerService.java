@@ -20,8 +20,14 @@ public class AlertSchedulerService {
 
     private final PriceAlertRepository priceAlertRepository;
     private final MarketPriceRepository marketPriceRepository;
-    private final RestClient restClient = RestClient.create();
+    private final RestClient restClient = createRestClient();
 
+    private static RestClient createRestClient() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(15000);
+        factory.setReadTimeout(180000); // 180 seconds to accommodate slow LLM inference
+        return RestClient.builder().requestFactory(factory).build();
+    }
     @Value("${advisor.service.url:http://localhost:8081}")
     private String advisorServiceUrl;
 
