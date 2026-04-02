@@ -2,8 +2,9 @@ USE newport_db;
 
 DELETE FROM position WHERE portfolio_id='demo_master';
 DELETE FROM portfolio_transaction WHERE portfolio_id='demo_master';
-DELETE FROM portfolio WHERE portfolio_id='demo_master';
 DELETE FROM watchlist WHERE portfolio_id='demo_master';
+DELETE FROM price_alert WHERE portfolio_id='demo_master';
+DELETE FROM portfolio WHERE portfolio_id='demo_master';
 
 INSERT INTO portfolio (portfolio_id, name, cash_balance) VALUES ('demo_master', 'Quantum Alpha Demo', 47500.00);
 
@@ -35,4 +36,4 @@ VALUES ('demo_tx_tsla_buy', 'demo_master', 'TSLA', 'BUY', 200.00, 200.00, DATE_S
 INSERT INTO position (position_id, portfolio_id, ticker_symbol, total_quantity, average_cost)
 VALUES ('demo_pos_tsla', 'demo_master', 'TSLA', 200.00, 200.00);
 
-INSERT INTO watchlist (watchlist_id, portfolio_id, ticker_symbol) VALUES ('demo_wtch_01', 'demo_master', '000001.SZ');
+INSERT INTO watchlist (portfolio_id, ticker_symbol) VALUES ('demo_master', '000001.SZ');
