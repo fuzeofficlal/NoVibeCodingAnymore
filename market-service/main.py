@@ -81,14 +81,69 @@ async def manual_sync(background_tasks: BackgroundTasks):
 @app.get("/api/v1/market/prices")
 async def get_market_prices(
     tickers: str = Query(None, description="Comma-separated ticker symbols (e.g. AAPL,MSFT)"),
+    force: bool = Query(False, description="Force real-time fetch from Yahoo Finance"),
     db: Session = Depends(get_db)
 ):
     query = db.query(models.MarketPrice)
-    if tickers:
-        ticker_list = [t.strip().upper() for t in tickers.split(',')]
-        query = query.filter(models.MarketPrice.ticker_symbol.in_(ticker_list))
-    
+    if not tickers:
+        results = query.all()
+        return [{"ticker_symbol": r.ticker_symbol, "current_price": r.current_price, "last_updated": r.last_updated} for r in results]
+        
+    ticker_list = [t.strip().upper() for t in tickers.split(',') if t.strip()]
+    query = query.filter(models.MarketPrice.ticker_symbol.in_(ticker_list))
     results = query.all()
+    
+    if force:
+        missing_tickers = ticker_list
+    else:
+        found_tickers = {r.ticker_symbol for r in results}
+        missing_tickers = [t for t in ticker_list if t not in found_tickers]
+    
+    if missing_tickers:
+        import yfinance as yf
+        import pandas as pd
+        from sqlalchemy.dialects.mysql import insert
+        try:
+            snapshot = yf.download(" ".join(missing_tickers), period="1d", threads=False, progress=False)
+            new_prices = []
+            new_companies = []
+            
+            if not snapshot.empty:
+                if len(missing_tickers) == 1:
+                    t = missing_tickers[0]
+                    if 'Close' in snapshot.columns:
+                        p = snapshot['Close'].iloc[-1]
+                        if isinstance(p, pd.Series):
+                            p = p.iloc[0]
+                        if not pd.isna(p):
+                            new_prices.append({"ticker_symbol": t, "current_price": float(p)})
+                            new_companies.append({"ticker_symbol": t, "company_name": t, "asset_type": "STOCK"})
+                else:
+                    if 'Close' in snapshot.columns.levels[0]:
+                        close_df = snapshot['Close']
+                        for t in missing_tickers:
+                            if t in close_df.columns:
+                                p = close_df[t].iloc[-1]
+                                if not pd.isna(p):
+                                    new_prices.append({"ticker_symbol": t, "current_price": float(p)})
+                                    new_companies.append({"ticker_symbol": t, "company_name": t, "asset_type": "STOCK"})
+            
+            if new_companies:
+                # Register into company_info to start tracking automatically
+                c_stmt = insert(models.CompanyInfo).values(new_companies)
+                db.execute(c_stmt.on_duplicate_key_update(company_name=c_stmt.inserted.company_name))
+                
+                # Insert market price
+                p_stmt = insert(models.MarketPrice).values(new_prices)
+                db.execute(p_stmt.on_duplicate_key_update(current_price=p_stmt.inserted.current_price))
+                db.commit()
+                
+                # Re-query
+                results = db.query(models.MarketPrice).filter(models.MarketPrice.ticker_symbol.in_(ticker_list)).all()
+        except Exception as e:
+            print(f"[DYNAMIC FETCH ERROR] {e}")
+            db.rollback()
+
     return [{"ticker_symbol": r.ticker_symbol, "current_price": r.current_price, "last_updated": r.last_updated} for r in results]
 
 # historical close prices
@@ -130,17 +185,20 @@ def get_market_news(tickers: str = Query(..., description="Comma-separated ticke
             raw_news = yf.Ticker(t).news
             cleaned = []
             for item in raw_news[:4]: # Return Top 4 recent news per ticker
-                article = item.get("content", {})
+                article = item.get("content") if isinstance(item.get("content"), dict) else item
                 cleaned.append({
                     "title": article.get("title", ""),
-                    "publisher": article.get("provider", {}).get("displayName", ""),
-                    "providerPublishTime": article.get("pubDate", ""),
-                    "link": article.get("clickThroughUrl", {}).get("url", "")
+                    "publisher": (article.get("provider") or {}).get("displayName", ""),
+                    "providerPublishTime": article.get("pubDate", "") or article.get("providerPublishTime", ""),
+                    "link": (article.get("clickThroughUrl") or {}).get("url", "") or article.get("link", "")
                 })
             news_aggregates[t] = cleaned
         except Exception as e:
             print(f"[NEWS FETCH ERROR] {t}: {e}")
             news_aggregates[t] = []
+            
+        import time
+        time.sleep(0.5)
             
     return news_aggregates
 

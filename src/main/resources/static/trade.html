@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoVibe Terminal | Trade</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">NV</div>
+        <div class="brand-copy"><h1>NoVibe</h1><p>Order Execution</p></div>
+      </div>
+      <nav class="nav-stack">
+        <a class="nav-link" href="/"><span>Home</span><span>00</span></a>
+        <a class="nav-link" href="/dashboard.html"><span>Dashboard</span><span>01</span></a>
+        <a class="nav-link active" href="/trade.html"><span>Trade</span><span>02</span></a>
+        <a class="nav-link" href="/compare.html"><span>Compare</span><span>03</span></a>
+        <a class="nav-link" href="/watchlist.html"><span>Watchlist</span><span>04</span></a>
+        <a class="nav-link" href="/ai.html"><span>AI Desk</span><span>05</span></a>
+      </nav>
+      <div class="nav-meta">Orders use live market prices and validate balance before BUY execution.</div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Execution Desk</div>
+          <h2 id="tradePortfolioName">Trade Terminal</h2>
+          <p>Submit buy and sell orders, or move cash with deposits and withdrawals.</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="pill">Cash <strong id="tradeBalance">$0.00</strong></div>
+          <a class="robot-link" href="/ai.html" aria-label="Open AI page">
+            <div class="robot-face"><span class="robot-antenna"></span></div>
+          </a>
+        </div>
+      </div>
+
+      <div id="tradeStatus"></div>
+
+      <section class="split-layout">
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Execution Ticket</h3><p>Live-priced order flow for stocks, bonds, and crypto.</p></div></div>
+            <form id="tradeForm" class="grid">
+              <div class="form-grid">
+                <div class="form-field">
+                  <label class="label" for="assetType">Asset Type</label>
+                  <select class="select" id="assetType">
+                    <option value="STOCK">Stock</option>
+                    <option value="ASHARE">A-Share</option>
+                    <option value="BOND">Bond</option>
+                    <option value="CRYPTO">Crypto</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label class="label" for="tradeSide">Order Side</label>
+                  <select class="select" id="tradeSide">
+                    <option value="BUY">Buy</option>
+                    <option value="SELL">Sell</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label class="label" for="tradeTicker">Ticker</label>
+                  <input class="input" list="tradeTickerList" id="tradeTicker" placeholder="Search symbol..." autocomplete="off">
+                  <datalist id="tradeTickerList"></datalist>
+                </div>
+                <div class="form-field">
+                  <label class="label" for="tradeQuantity">Quantity</label>
+                  <input class="input" id="tradeQuantity" type="number" min="0.0001" step="0.0001" placeholder="10">
+                </div>
+              </div>
+              <div class="grid four" id="tradeExecutionMetrics">
+                <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Live Execution Price</span><div id="liveExecutionPrice" class="kpi-value">--</div></div></div>
+                <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Estimated Notional</span><div id="estimatedNotional" class="kpi-value">--</div></div></div>
+                <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Current Holding</span><div id="currentHolding" class="kpi-value">0</div></div></div>
+                <div class="panel interactive"><div class="panel-body">
+                  <span class="kpi-label" style="display: flex; justify-content: space-between; align-items: center;">
+                    SMA Baseline
+                    <select id="smaDays" class="select" style="width: auto; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; border: none; background: rgba(255,255,255,0.05); cursor: pointer;">
+                      <option value="20">20-Day</option>
+                      <option value="50" selected>50-Day</option>
+                      <option value="100">100-Day</option>
+                      <option value="200">200-Day</option>
+                    </select>
+                  </span>
+                  <div id="smaValue" class="kpi-value">--</div>
+                </div></div>
+              </div>
+              <div class="button-row">
+                <button id="refreshQuote" class="button-secondary" type="button">Refresh Live Quote</button>
+                <button class="button" type="submit">Submit Order</button>
+              </div>
+            </form>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Cash Management</h3><p>Deposit and withdraw without leaving the terminal.</p></div></div>
+            <form id="cashFlowForm" class="grid">
+              <div class="form-grid">
+                <div class="form-field">
+                  <label class="label" for="cashAction">Action</label>
+                  <select class="select" id="cashAction">
+                    <option value="DEPOSIT">Deposit</option>
+                    <option value="WITHDRAW">Withdraw</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label class="label" for="cashAmount">Amount</label>
+                  <input class="input" id="cashAmount" type="number" min="0.01" step="0.01" placeholder="1000">
+                </div>
+              </div>
+              <div class="grid two">
+                <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Available Cash</span><div id="availableCash" class="kpi-value">$0.00</div></div></div>
+                <div class="panel interactive"><div class="panel-body"><span class="kpi-label">Funds Rule</span><div class="kpi-sub">BUY orders are blocked when cash is insufficient.</div></div></div>
+              </div>
+              <div class="button-row">
+                <button class="button" type="submit">Process Cash Flow</button>
+              </div>
+            </form>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid two" style="margin-top:18px;">
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Featured Market</h3><p>Quick view of live tradable symbols.</p></div></div>
+            <div id="tradeMarketBoard" class="market-grid"></div>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Recent Trades</h3><p>Latest backend transaction records.</p></div></div>
+            <div id="recentTrades" class="list"></div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastStack" class="toast-stack"></div>
+  <div id="appModal" class="modal-backdrop">
+    <div class="modal">
+      <h3 data-modal-title>Notice</h3>
+      <p data-modal-body></p>
+      <div class="button-row"><button class="button-secondary" type="button" data-close-modal>Close</button></div>
+    </div>
+  </div>
+  <script type="module" src="/js/trade.js"></script>
+</body>
+</html>

@@ -11,7 +11,8 @@ public class AdvisorService {
     private final String defaultModel;
     private final String defaultBaseUrl;
 
-    private static final String CORE_SERVICE_URL = "http://localhost:8080";
+    private final String coreUrl;
+    private final String gatewayUrl;
 
     // register agent toolsand functional calling ab
     private final org.springframework.ai.model.function.FunctionCallbackContext functionCallbackContext;
@@ -21,15 +22,30 @@ public class AdvisorService {
     //  Memory Engine ---
     private final org.springframework.ai.chat.memory.ChatMemory chatMemory = new org.springframework.ai.chat.memory.InMemoryChatMemory();
 
+    private final java.util.concurrent.CopyOnWriteArrayList<org.springframework.web.servlet.mvc.method.annotation.SseEmitter> emitters = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter subscribeToAlerts() {
+        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(86400000L); // 24 hours
+        this.emitters.add(emitter);
+        emitter.onCompletion(() -> this.emitters.remove(emitter));
+        emitter.onTimeout(() -> this.emitters.remove(emitter));
+        emitter.onError(e -> this.emitters.remove(emitter));
+        return emitter;
+    }
+
     public AdvisorService(RestClient restClient,
             @org.springframework.beans.factory.annotation.Value("${spring.ai.openai.base-url}") String defaultBaseUrl,
             @org.springframework.beans.factory.annotation.Value("${spring.ai.openai.chat.options.model:gemini-3-pro-preview}") String defaultModel,
             @org.springframework.beans.factory.annotation.Value("${OPENAI_API_KEY:}") String defaultApiKey,
+            @org.springframework.beans.factory.annotation.Value("${CORE_URL:http://localhost:8080}") String coreUrl,
+            @org.springframework.beans.factory.annotation.Value("${GATEWAY_URL:http://localhost:8090}") String gatewayUrl,
             org.springframework.beans.factory.ObjectProvider<org.springframework.ai.model.function.FunctionCallbackContext> functionCallbackProvider) {
         this.restClient = restClient;
         this.defaultBaseUrl = defaultBaseUrl;
         this.defaultModel = defaultModel;
         this.defaultApiKey = defaultApiKey;
+        this.coreUrl = coreUrl;
+        this.gatewayUrl = gatewayUrl;
         this.functionCallbackContext = functionCallbackProvider.getIfAvailable();
     }
 
@@ -81,7 +97,7 @@ public class AdvisorService {
         String summaryJson = "{}";
         try {
             summaryJson = restClient.get()
-                    .uri(CORE_SERVICE_URL + "/api/v1/portfolios/{id}/summary", portfolioId)
+                    .uri(coreUrl + "/api/v1/portfolios/{id}/summary", portfolioId)
                     .retrieve()
                     .body(String.class);
         } catch (Exception e) {
@@ -94,7 +110,7 @@ public class AdvisorService {
 
         try {
             holdingsJson = restClient.get()
-                    .uri(CORE_SERVICE_URL + "/api/v1/portfolios/{id}/holdings", portfolioId)
+                    .uri(coreUrl + "/api/v1/portfolios/{id}/holdings", portfolioId)
                     .retrieve()
                     .body(String.class);
             com.fasterxml.jackson.databind.JsonNode holdingsNode = mapper.readTree(holdingsJson);
@@ -110,7 +126,7 @@ public class AdvisorService {
         String watchlistJson = "[]";
         try {
             watchlistJson = restClient.get()
-                    .uri(CORE_SERVICE_URL + "/api/v1/portfolios/{id}/watchlist", portfolioId)
+                    .uri(coreUrl + "/api/v1/portfolios/{id}/watchlist", portfolioId)
                     .retrieve()
                     .body(String.class);
             com.fasterxml.jackson.databind.JsonNode watchlistNode = mapper.readTree(watchlistJson);
@@ -129,7 +145,7 @@ public class AdvisorService {
             try {
                 // calls to Python via internal Gateway port 8090 proxy or directly to 8000
                 newsJson = restClient.get()
-                        .uri("http://localhost:8090/api/v1/market/news?tickers=" + tickerQuery)
+                        .uri(gatewayUrl + "/api/v1/market/news?tickers=" + tickerQuery)
                         .retrieve()
                         .body(String.class);
             } catch (Exception e) {
@@ -181,6 +197,15 @@ public class AdvisorService {
         System.out.println("================================================================");
         System.out.println(urgentMessage);
         System.out.println("================================================================\n");
+        
+        for (org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter : emitters) {
+            try {
+                String encoded = java.util.Base64.getEncoder().encodeToString(urgentMessage.getBytes("UTF-8"));
+                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("alert").data(encoded));
+            } catch (Exception e) {
+                emitters.remove(emitter);
+            }
+        }
         
         return urgentMessage;
     }

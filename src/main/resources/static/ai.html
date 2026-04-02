@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoVibe Terminal | AI Desk</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">NV</div>
+        <div class="brand-copy"><h1>NoVibe</h1><p>AI Desk</p></div>
+      </div>
+      <nav class="nav-stack">
+        <a class="nav-link" href="/"><span>Home</span><span>00</span></a>
+        <a class="nav-link" href="/dashboard.html"><span>Dashboard</span><span>01</span></a>
+        <a class="nav-link" href="/trade.html"><span>Trade</span><span>02</span></a>
+        <a class="nav-link" href="/compare.html"><span>Compare</span><span>03</span></a>
+        <a class="nav-link" href="/watchlist.html"><span>Watchlist</span><span>04</span></a>
+        <a class="nav-link active" href="/ai.html"><span>AI Desk</span><span>05</span></a>
+      </nav>
+      <div class="nav-meta">Dedicated page for your in-house AI workflow, with room for future agent and API integration.</div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Private Advisor Bridge</div>
+          <h2>AI Strategy Desk</h2>
+          <p>This page is isolated for your future AI product surface, while already being compatible with the current advisor endpoints.</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="pill">Portfolio <strong id="aiPortfolioId">--</strong></div>
+          <a class="robot-link" href="/ai.html" aria-label="Open AI page">
+            <div class="robot-face"><span class="robot-antenna"></span></div>
+          </a>
+        </div>
+      </div>
+
+      <section class="grid two">
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Risk Insight</h3><p>Pull the backend AI portfolio analysis report when you have an API key ready.</p></div></div>
+            <div class="form-field">
+              <label class="label" for="advisorApiKey">Model API Key</label>
+              <input class="input" id="advisorApiKey" placeholder="Paste your X-API-Key compatible key">
+            </div>
+            <div class="button-row" style="margin-top:16px;">
+              <button id="loadInsight" class="button" type="button">Load Insight</button>
+            </div>
+            <div id="advisorInsight" class="input markdown-body" style="margin-top:16px; min-height:220px; padding: 12px; overflow-x: auto;">AI insight output will appear here.</div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-body">
+            <div class="section-heading"><div><h3>Agent Chat Surface</h3><p>Future-proofed interface for your own AI agent. Current backend chat endpoint is already wired.</p></div></div>
+            <form id="advisorChatForm" class="grid">
+              <div class="form-field">
+                <label class="label" for="advisorPrompt">Prompt</label>
+                <textarea id="advisorPrompt" class="textarea" rows="8" placeholder="Ask about news, risk, or request a tool-driven trade."></textarea>
+              </div>
+              <div class="button-row">
+                <button class="button" type="submit">Run AI Request</button>
+              </div>
+            </form>
+            <div id="advisorChatResult" class="input markdown-body" style="margin-top:16px; min-height:220px; padding: 12px; overflow-x: auto;">Agent response will appear here.</div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastStack" class="toast-stack"></div>
+  <div id="appModal" class="modal-backdrop">
+    <div class="modal">
+      <h3 data-modal-title>Notice</h3>
+      <p data-modal-body></p>
+      <div class="button-row"><button class="button-secondary" type="button" data-close-modal>Close</button></div>
+    </div>
+  </div>
+  <script type="module" src="/js/ai.js"></script>
+</body>
+</html>

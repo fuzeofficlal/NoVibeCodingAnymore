@@ -58,7 +58,7 @@ Write-Host ">>> [2/7] Initializing DB Sandbox (TEST_PORTFOLIO_FULL)..." -Foregro
 $pythonSeeder = @"
 import pymysql
 try:
-    conn = pymysql.connect(host='127.0.0.1', port=3306, user='root', password='Azhe114514', database='newport_db', autocommit=True)
+    conn = pymysql.connect(host='127.0.0.1', port=3307, user='root', password='Azhe114514', database='newport_db', autocommit=True)
     with conn.cursor() as c:
         c.execute("DELETE FROM watchlist WHERE portfolio_id='TEST_PORTFOLIO_FULL'")
         c.execute("DELETE FROM price_alert WHERE portfolio_id='TEST_PORTFOLIO_FULL'")

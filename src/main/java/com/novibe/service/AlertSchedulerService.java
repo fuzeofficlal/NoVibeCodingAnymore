@@ -20,12 +20,18 @@ public class AlertSchedulerService {
 
     private final PriceAlertRepository priceAlertRepository;
     private final MarketPriceRepository marketPriceRepository;
-    private final RestClient restClient = RestClient.create();
+    private final RestClient restClient = createRestClient();
 
+    private static RestClient createRestClient() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(15000);
+        factory.setReadTimeout(180000); // 180 seconds to accommodate slow LLM inference
+        return RestClient.builder().requestFactory(factory).build();
+    }
     @Value("${advisor.service.url:http://localhost:8081}")
     private String advisorServiceUrl;
 
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelay = 20000)
     public void scanAndTriggerAlerts() {
         log.info("[AlertScheduler] Scanning active Price Alerts...");
         List<PriceAlert> alerts = priceAlertRepository.findAll();
@@ -38,30 +44,39 @@ public class AlertSchedulerService {
             String ticker = alert.getTickerSymbol();
             marketPriceRepository.findById(ticker).ifPresent(marketPrice -> {
                 boolean triggered = false;
-                
-                if ("TAKE_PROFIT".equalsIgnoreCase(alert.getAlertType()) && 
-                    marketPrice.getCurrentPrice().compareTo(alert.getTargetPrice()) >= 0) {
+
+                if ("TAKE_PROFIT".equalsIgnoreCase(alert.getAlertType()) &&
+                        marketPrice.getCurrentPrice().compareTo(alert.getTargetPrice()) >= 0) {
                     triggered = true;
-                } else if ("STOP_LOSS".equalsIgnoreCase(alert.getAlertType()) && 
-                    marketPrice.getCurrentPrice().compareTo(alert.getTargetPrice()) <= 0) {
+                } else if ("STOP_LOSS".equalsIgnoreCase(alert.getAlertType()) &&
+                        marketPrice.getCurrentPrice().compareTo(alert.getTargetPrice()) <= 0) {
                     triggered = true;
                 }
 
                 if (triggered) {
-                    log.warn("[AlertScheduler] 🚨 TRIGGERED: {} hit {} target of {}", 
-                             ticker, alert.getAlertType(), alert.getTargetPrice());
-                    
-                    // Notify AI Advisor Service asynchronously
+                    log.warn("[AlertScheduler] 🚨 TRIGGERED: {} hit {} target of {}",
+                            ticker, alert.getAlertType(), alert.getTargetPrice());
+
+                    // notify
                     try {
-                        String payload = String.format("{\"ticker\": \"%s\", \"price\": %s, \"type\": \"%s\", \"target\": %s}", 
-                            ticker, marketPrice.getCurrentPrice(), alert.getAlertType(), alert.getTargetPrice());
-                        
-                        restClient.post()
-                            .uri(advisorServiceUrl + "/api/v1/advisor/{id}/proactive-alert", alert.getPortfolioId())
-                            .header("Content-Type", "application/json")
-                            .body(payload)
-                            .retrieve()
-                            .toBodilessEntity();
+                        String payload = String.format(
+                                "{\"ticker\": \"%s\", \"price\": %s, \"type\": \"%s\", \"target\": %s}",
+                                ticker, marketPrice.getCurrentPrice(), alert.getAlertType(), alert.getTargetPrice());
+
+                        String url = advisorServiceUrl + "/api/v1/advisor/{id}/proactive-alert";
+                        String pid = alert.getPortfolioId();
+                        java.util.concurrent.CompletableFuture.runAsync(() -> {
+                            try {
+                                restClient.post()
+                                        .uri(url, pid)
+                                        .header("Content-Type", "application/json")
+                                        .body(payload)
+                                        .retrieve()
+                                        .toBodilessEntity();
+                            } catch (Exception ex) {
+                                log.error("Async AI trigger failed: ", ex);
+                            }
+                        });
 
                         priceAlertRepository.delete(alert);
                     } catch (Exception e) {

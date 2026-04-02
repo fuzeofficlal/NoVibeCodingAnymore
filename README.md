@@ -46,3 +46,27 @@ transaction_type,Enum / String,,"交易类型：BUY (买入), SELL (卖出), DEP
 quantity,Decimal / Int,,交易数量 (靠交易类型区分进出)
 price_per_unit,Decimal,,成交单价
 transaction_date,Timestamp,,交易发生的精确时间
+
+
+## HOW to RUN This PROJECT:
+
+pull Branch DockerImp;
+new a file : .env
+in .env file, input : OPENAI_API_KEY=sk-xxxxx(keyhere)
+
+
+install docker :   https://www.docker.com/products/docker-desktop/   
+If MacOS, choose MAC-APPLE  Silicon
+
+After Installing,   in Terminal, cd to this project, INPUT:
+docker-compose up --build -d
+OR
+docker-compose up --build     
+
+http://localhost:8090 is now running the App
+
+
+To shut this app down:
+docker-compose down 
+in TERMINAL
+

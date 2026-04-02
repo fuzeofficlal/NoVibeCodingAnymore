@@ -11,9 +11,15 @@ import java.util.function.Function;
 public class AgentTools {
 
     private final RestClient restClient;
+    private final String coreUrl;
+    private final String gatewayUrl;
 
-    public AgentTools(RestClient restClient) {
+    public AgentTools(RestClient restClient,
+            @org.springframework.beans.factory.annotation.Value("${CORE_URL:http://localhost:8080}") String coreUrl,
+            @org.springframework.beans.factory.annotation.Value("${GATEWAY_URL:http://localhost:8090}") String gatewayUrl) {
         this.restClient = restClient;
+        this.coreUrl = coreUrl;
+        this.gatewayUrl = gatewayUrl;
     }
 
     public record MarketNewsRequest(String tickers) {}
@@ -24,7 +30,7 @@ public class AgentTools {
         return request -> {
             try {
                 return restClient.get()
-                    .uri("http://localhost:8090/api/v1/market/news?tickers=" + request.tickers())
+                    .uri(gatewayUrl + "/api/v1/market/news?tickers=" + request.tickers())
                     .retrieve()
                     .body(String.class);
             } catch(Exception e) {
@@ -42,7 +48,7 @@ public class AgentTools {
             try {
                 // Fetch current price
                 String priceJson = restClient.get()
-                    .uri("http://localhost:8090/api/v1/market/prices?tickers=" + request.tickerSymbol())
+                    .uri(gatewayUrl + "/api/v1/market/prices?tickers=" + request.tickerSymbol())
                     .retrieve()
                     .body(String.class);
                 
@@ -60,7 +66,7 @@ public class AgentTools {
                         request.transactionType().toUpperCase(), request.tickerSymbol(), request.quantity(), currentPrice);
                 
                 restClient.post()
-                    .uri("http://localhost:8080/api/v1/portfolios/{id}/transactions", request.portfolioId())
+                    .uri(coreUrl + "/api/v1/portfolios/{id}/transactions", request.portfolioId())
                     .header("Content-Type", "application/json")
                     .body(payload)
                     .retrieve()
@@ -81,7 +87,7 @@ public class AgentTools {
         return request -> {
             try {
                 return restClient.get()
-                    .uri("http://localhost:8080/api/v1/portfolios/{id}/summary", request.portfolioId())
+                    .uri(coreUrl + "/api/v1/portfolios/{id}/summary", request.portfolioId())
                     .retrieve()
                     .body(String.class);
             } catch(Exception e) {
@@ -98,7 +104,7 @@ public class AgentTools {
         return request -> {
             try {
                 return restClient.get()
-                    .uri("http://localhost:8080/api/v1/portfolios/{id}/holdings", request.portfolioId())
+                    .uri(coreUrl + "/api/v1/portfolios/{id}/holdings", request.portfolioId())
                     .retrieve()
                     .body(String.class);
             } catch(Exception e) {
@@ -116,7 +122,7 @@ public class AgentTools {
             try {
                 int defaultDays = request.days() != null ? request.days() : 20;
                 return restClient.get()
-                    .uri("http://localhost:8090/api/v1/market/indicators/sma/{ticker}?days={days}", request.tickerSymbol(), defaultDays)
+                    .uri(gatewayUrl + "/api/v1/market/indicators/sma/{ticker}?days={days}", request.tickerSymbol(), defaultDays)
                     .retrieve()
                     .body(String.class);
             } catch(Exception e) {
