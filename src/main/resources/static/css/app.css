@@ -310,12 +310,53 @@ textarea {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
+  position: relative;
 }
 
 .section-heading h3 {
   font-family: var(--font-display);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: help;
+}
+
+.section-heading h3::after {
+  content: "ⓘ";
+  font-family: var(--font-ui);
+  text-transform: none;
+  font-size: 0.85em;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.section-heading p {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 0;
+  background: rgba(15, 19, 25, 0.98);
+  border: 1px solid rgba(182, 193, 207, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  padding: 10px 14px;
+  border-radius: 8px;
+  z-index: 20;
+  font-size: 0.85rem;
+  color: var(--muted);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0);
+  transition: opacity 150ms ease, transform 150ms ease;
+  width: max-content;
+  max-width: 340px;
+  line-height: 1.5;
+}
+
+.section-heading:hover p {
+  opacity: 1;
+  transform: translateY(8px);
 }
 
 .kpi-card {
