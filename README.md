@@ -51,8 +51,17 @@ transaction_date,Timestamp,,交易发生的精确时间
 ## HOW to RUN This PROJECT:
 
 pull Branch DockerImp;
+now   !MAIN BRANCH!
 new a file : .env
 in .env file, input : OPENAI_API_KEY=sk-xxxxx(keyhere)
+
+REMEMBER : 
+docker-compose down -v 
+docker-compose up -d --build
+to clean up.
+
+
+
 
 
 install docker :   https://www.docker.com/products/docker-desktop/   
