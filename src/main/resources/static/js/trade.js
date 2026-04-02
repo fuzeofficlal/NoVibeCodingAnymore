@@ -226,7 +226,7 @@ async function submitCashFlow(event) {
     await api.processTransaction(context.id, {
       transactionType: type,
       quantity: amount,
-      pricePerUnit: amount
+      pricePerUnit: 1
     });
     toast(`${type} completed successfully.`);
     showModal("Cash flow successful", `${type === "DEPOSIT" ? "Deposit" : "Withdrawal"} of ${formatMoney(amount)} completed.`);

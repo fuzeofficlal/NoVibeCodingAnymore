@@ -8,7 +8,7 @@ DELETE FROM watchlist WHERE portfolio_id='demo_master';
 INSERT INTO portfolio (portfolio_id, name, cash_balance) VALUES ('demo_master', 'Quantum Alpha Demo', 47500.00);
 
 INSERT INTO portfolio_transaction (transaction_id, portfolio_id, transaction_type, quantity, price_per_unit, transaction_date)
-VALUES ('demo_tx_dep01', 'demo_master', 'DEPOSIT', 500000.00, 500000.00, DATE_SUB(NOW(), INTERVAL 60 DAY));
+VALUES ('demo_tx_dep01', 'demo_master', 'DEPOSIT', 500000.00, 1.00, DATE_SUB(NOW(), INTERVAL 60 DAY));
 
 INSERT INTO portfolio_transaction (transaction_id, portfolio_id, ticker_symbol, transaction_type, quantity, price_per_unit, transaction_date)
 VALUES ('demo_tx_aapl_buy', 'demo_master', 'AAPL', 'BUY', 500.00, 150.00, DATE_SUB(NOW(), INTERVAL 45 DAY));
